@@ -81,3 +81,23 @@ Common filters:
 - event source.
 - severity.
 - subject.
+
+## Backpressure
+The reference event bus retains a bounded history of published events for
+diagnostics and replay. When the retained buffer reaches its configured
+`capacity`, the bus applies a deterministic `backpressure_strategy`:
+
+- `drop_oldest`: evict the oldest retained event and keep the new one.
+- `drop_newest`: skip retaining the new event but still deliver it to live
+  subscribers.
+- `reject`: refuse to publish and raise an error so the caller can handle
+  saturation explicitly.
+
+Backpressure only governs the retained history. Live subscribers are always
+notified for events that are not rejected, regardless of retention. This keeps
+the bus deterministic and prevents unbounded memory growth under event storms
+without silently dropping events that active handlers still need.
+
+The bus exposes `capacity`, `backpressure_strategy`, and a monotonic
+`dropped_count` for observability. The default configuration is unbounded
+(`capacity = null`) to preserve the existing behavior of retaining every event.

@@ -30,7 +30,10 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
     """Create a Sentinel application from validated configuration."""
 
     resolved_config = config or load_config()
-    event_bus = InMemoryEventBus()
+    event_bus = InMemoryEventBus(
+        capacity=resolved_config.event_bus.capacity,
+        backpressure_strategy=resolved_config.event_bus.backpressure_strategy,
+    )
 
     audit_log = None
     if resolved_config.audit.enabled:

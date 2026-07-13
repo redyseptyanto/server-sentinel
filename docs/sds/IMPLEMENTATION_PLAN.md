@@ -28,7 +28,7 @@ Deliverables:
 - Plugin manifest discovery. Done.
 - Scheduler contract. Done.
 - Event schema versioning. Done.
-- Event bus backpressure strategy. Next.
+- Event bus backpressure strategy. Done.
 
 Exit criteria:
 - Tests run locally with no external services.
@@ -46,7 +46,7 @@ Deliverables:
 ## Phase 2: Event Bus
 Deliverables:
 - Subscription filtering. Done.
-- Backpressure strategy.
+- Backpressure strategy. Done.
 - Durable event sink interface.
 - Event schema versioning. Done.
 

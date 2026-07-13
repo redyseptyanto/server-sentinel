@@ -56,6 +56,8 @@ Sentinel is in foundation development. The repository now contains:
 - Event schema versioning.
 - Plugin manifest validation.
 - Plugin manifest file discovery.
+- Event bus backpressure strategy (bounded retention with drop_oldest,
+  drop_newest, or reject).
 - Unit tests for events, runtime lifecycle, configuration, audit logging,
   action audit sequencing, scheduler behavior, and plugin manifests.
 

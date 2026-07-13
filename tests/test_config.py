@@ -2,7 +2,12 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from sentinel_core import ConfigurationError, config_from_mapping, load_config
+from sentinel_core import (
+    BackpressureStrategy,
+    ConfigurationError,
+    config_from_mapping,
+    load_config,
+)
 
 
 class ConfigTests(unittest.TestCase):
@@ -50,6 +55,41 @@ class ConfigTests(unittest.TestCase):
     def test_invalid_audit_path_raises_configuration_error(self) -> None:
         with self.assertRaises(ConfigurationError):
             config_from_mapping({"audit": {"enabled": True, "path": ""}})
+
+    def test_event_bus_defaults_are_unbounded(self) -> None:
+        config = config_from_mapping({})
+
+        self.assertIsNone(config.event_bus.capacity)
+        self.assertEqual(
+            config.event_bus.backpressure_strategy, BackpressureStrategy.DROP_OLDEST
+        )
+
+    def test_event_bus_capacity_and_strategy_are_parsed(self) -> None:
+        config = config_from_mapping(
+            {
+                "event_bus": {
+                    "kind": "in_memory",
+                    "capacity": 100,
+                    "backpressure_strategy": "drop_newest",
+                }
+            }
+        )
+
+        self.assertEqual(config.event_bus.capacity, 100)
+        self.assertEqual(
+            config.event_bus.backpressure_strategy, BackpressureStrategy.DROP_NEWEST
+        )
+
+    def test_invalid_event_bus_capacity_raises_configuration_error(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"event_bus": {"capacity": 0}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"event_bus": {"capacity": "big"}})
+
+    def test_invalid_event_bus_strategy_raises_configuration_error(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"event_bus": {"backpressure_strategy": "explode"}})
 
 
 if __name__ == "__main__":

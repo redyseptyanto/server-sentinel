@@ -5,7 +5,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
 import tomllib
+
+from sentinel_core.events import BackpressureStrategy
 
 
 class ConfigurationError(ValueError):
@@ -20,6 +23,8 @@ class RuntimeConfig:
 @dataclass(frozen=True, slots=True)
 class EventBusConfig:
     kind: str = "in_memory"
+    capacity: int | None = None
+    backpressure_strategy: BackpressureStrategy = BackpressureStrategy.DROP_OLDEST
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,7 +77,27 @@ def _event_bus_config(raw_event_bus: Any) -> EventBusConfig:
     if kind != "in_memory":
         raise ConfigurationError("event_bus.kind must be 'in_memory'")
 
-    return EventBusConfig(kind=kind)
+    capacity = raw_event_bus.get("capacity", None)
+    if capacity is not None:
+        if not isinstance(capacity, int) or isinstance(capacity, bool) or capacity < 1:
+            raise ConfigurationError("event_bus.capacity must be a positive integer or null")
+
+    raw_strategy = raw_event_bus.get("backpressure_strategy", "drop_oldest")
+    if not isinstance(raw_strategy, str):
+        raise ConfigurationError("event_bus.backpressure_strategy must be a string")
+    try:
+        strategy = BackpressureStrategy(raw_strategy)
+    except ValueError:
+        allowed = ", ".join(s.value for s in BackpressureStrategy)
+        raise ConfigurationError(
+            f"event_bus.backpressure_strategy must be one of: {allowed}"
+        )
+
+    return EventBusConfig(
+        kind=kind,
+        capacity=capacity,
+        backpressure_strategy=strategy,
+    )
 
 
 def _audit_config(raw_audit: Any) -> AuditConfig:

@@ -18,6 +18,25 @@ EventFilter = Callable[["Event"], bool]
 EVENT_SCHEMA_VERSION = "1.0"
 
 
+class BackpressureStrategy(StrEnum):
+    """Strategy applied when the retained event buffer reaches capacity."""
+
+    DROP_OLDEST = "drop_oldest"
+    DROP_NEWEST = "drop_newest"
+    REJECT = "reject"
+
+
+class EventBusBackpressureError(RuntimeError):
+    """Raised when an event cannot be published because the bus is at capacity."""
+
+    def __init__(self, strategy: BackpressureStrategy, capacity: int) -> None:
+        self.strategy = strategy
+        self.capacity = capacity
+        super().__init__(
+            f"event bus at capacity {capacity} with strategy {strategy.value}"
+        )
+
+
 class EventSeverity(StrEnum):
     """Supported event severities."""
 
@@ -88,16 +107,52 @@ class EventBus(Protocol):
 
 
 class InMemoryEventBus:
-    """Synchronous in-memory event bus for the reference runtime."""
+    """Synchronous in-memory event bus for the reference runtime.
 
-    def __init__(self) -> None:
+    The bus retains a bounded history of published events for diagnostics and
+    replay. When the retained buffer reaches ``capacity`` the configured
+    ``backpressure_strategy`` decides what happens to the incoming event:
+
+    - ``drop_oldest``: evict the oldest retained event and keep the new one.
+    - ``drop_newest``: discard the new event from the retained buffer but still
+      deliver it to subscribers.
+    - ``reject``: refuse to publish and raise ``EventBusBackpressureError``.
+
+    Subscribers are always notified for events that are not rejected, regardless
+    of whether the event is retained. Backpressure only governs the retained
+    history, never delivery to live subscribers.
+    """
+
+    def __init__(
+        self,
+        capacity: int | None = None,
+        backpressure_strategy: BackpressureStrategy = BackpressureStrategy.DROP_OLDEST,
+    ) -> None:
+        if capacity is not None and capacity < 1:
+            raise ValueError("capacity must be a positive integer or None")
+
         self._handlers: list[tuple[EventHandler, EventFilter | None]] = []
         self._events: list[Event] = []
+        self._capacity = capacity
+        self._backpressure_strategy = backpressure_strategy
+        self._dropped_count = 0
         self._lock = RLock()
 
     def publish(self, event: Event) -> Event:
         with self._lock:
-            self._events.append(event)
+            if self._capacity is not None and len(self._events) >= self._capacity:
+                if self._backpressure_strategy is BackpressureStrategy.REJECT:
+                    raise EventBusBackpressureError(
+                        self._backpressure_strategy, self._capacity
+                    )
+                if self._backpressure_strategy is BackpressureStrategy.DROP_OLDEST:
+                    self._events.pop(0)
+                    self._events.append(event)
+                # DROP_NEWEST keeps the buffer unchanged and skips retention.
+                self._dropped_count += 1
+            else:
+                self._events.append(event)
+
             handlers = tuple(self._handlers)
 
         for handler, event_filter in handlers:
@@ -126,3 +181,17 @@ class InMemoryEventBus:
     def events(self) -> tuple[Event, ...]:
         with self._lock:
             return tuple(self._events)
+
+    @property
+    def capacity(self) -> int | None:
+        return self._capacity
+
+    @property
+    def backpressure_strategy(self) -> BackpressureStrategy:
+        return self._backpressure_strategy
+
+    @property
+    def dropped_count(self) -> int:
+        """Count of events dropped from the retained buffer by backpressure."""
+        with self._lock:
+            return self._dropped_count
