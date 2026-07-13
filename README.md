@@ -58,8 +58,12 @@ Sentinel is in foundation development. The repository now contains:
 - Plugin manifest file discovery.
 - Event bus backpressure strategy (bounded retention with drop_oldest,
   drop_newest, or reject).
+- NotificationPort and ApprovalProviderPort core integration contracts.
+- Hermes HTTP push client (events + approval requests) with configurable
+  endpoint, token, timeout, and severity filter.
 - Unit tests for events, runtime lifecycle, configuration, audit logging,
-  action audit sequencing, scheduler behavior, and plugin manifests.
+  action audit sequencing, scheduler behavior, plugin manifests,
+  Hermes client, and Hermes config.
 
 ## Run Tests
 ```powershell

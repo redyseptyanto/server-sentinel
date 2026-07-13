@@ -101,9 +101,11 @@ Deliverables:
 
 ## Phase 10: Hermes Integration
 Deliverables:
+- Hermes HTTP push client (events + approval). Done.
 - Hermes event bridge.
-- Hermes approval provider.
-- Integration tests with mocked Hermes responses.
+- Hermes approval provider. Done.
+- Integration tests with mocked Hermes responses. Done.
+- Hermes API endpoint (pull metrics, logs, state).
 
 ## Phase 11: CLI
 Deliverables:

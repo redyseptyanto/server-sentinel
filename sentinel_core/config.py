@@ -34,10 +34,21 @@ class AuditConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class HermesConfig:
+    enabled: bool = False
+    base_url: str = ""
+    token: str = ""
+    timeout_seconds: float = 10.0
+    notify_on: tuple[str, ...] = ("warning", "error", "critical")
+    require_approval: bool = True
+
+
+@dataclass(frozen=True, slots=True)
 class SentinelConfig:
     runtime: RuntimeConfig = RuntimeConfig()
     event_bus: EventBusConfig = EventBusConfig()
     audit: AuditConfig = AuditConfig()
+    hermes: HermesConfig = HermesConfig()
 
 
 def load_config(path: str | Path | None = None) -> SentinelConfig:
@@ -55,7 +66,13 @@ def config_from_mapping(raw_config: dict[str, Any]) -> SentinelConfig:
     runtime = _runtime_config(raw_config.get("runtime", {}))
     event_bus = _event_bus_config(raw_config.get("event_bus", {}))
     audit = _audit_config(raw_config.get("audit", {}))
-    return SentinelConfig(runtime=runtime, event_bus=event_bus, audit=audit)
+    hermes = _hermes_config(raw_config.get("hermes", {}))
+    return SentinelConfig(
+        runtime=runtime,
+        event_bus=event_bus,
+        audit=audit,
+        hermes=hermes,
+    )
 
 
 def _runtime_config(raw_runtime: Any) -> RuntimeConfig:
@@ -115,3 +132,48 @@ def _audit_config(raw_audit: Any) -> AuditConfig:
         raise ConfigurationError("audit.path must be a string")
 
     return AuditConfig(enabled=enabled, path=Path(path))
+
+
+def _hermes_config(raw_hermes: Any) -> HermesConfig:
+    if not isinstance(raw_hermes, dict):
+        raise ConfigurationError("hermes must be a table")
+
+    enabled = raw_hermes.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigurationError("hermes.enabled must be a boolean")
+
+    base_url = raw_hermes.get("base_url", "")
+    if not isinstance(base_url, str):
+        raise ConfigurationError("hermes.base_url must be a string")
+    if enabled and not base_url.strip():
+        raise ConfigurationError("hermes.base_url must be a non-empty string when hermes is enabled")
+
+    token = raw_hermes.get("token", "")
+    if not isinstance(token, str):
+        raise ConfigurationError("hermes.token must be a string")
+
+    timeout_seconds = raw_hermes.get("timeout_seconds", 10.0)
+    if not isinstance(timeout_seconds, (int, float)) or isinstance(timeout_seconds, bool):
+        raise ConfigurationError("hermes.timeout_seconds must be a number")
+    if timeout_seconds <= 0:
+        raise ConfigurationError("hermes.timeout_seconds must be positive")
+
+    notify_on = raw_hermes.get("notify_on", ("warning", "error", "critical"))
+    if not isinstance(notify_on, (list, tuple)):
+        raise ConfigurationError("hermes.notify_on must be a list of severities")
+    for severity in notify_on:
+        if not isinstance(severity, str):
+            raise ConfigurationError("hermes.notify_on entries must be strings")
+
+    require_approval = raw_hermes.get("require_approval", True)
+    if not isinstance(require_approval, bool):
+        raise ConfigurationError("hermes.require_approval must be a boolean")
+
+    return HermesConfig(
+        enabled=enabled,
+        base_url=base_url,
+        token=token,
+        timeout_seconds=float(timeout_seconds),
+        notify_on=tuple(notify_on),
+        require_approval=require_approval,
+    )

@@ -5,6 +5,7 @@ from pathlib import Path
 from sentinel_core import (
     BackpressureStrategy,
     ConfigurationError,
+    HermesConfig,
     config_from_mapping,
     load_config,
 )
@@ -90,6 +91,65 @@ class ConfigTests(unittest.TestCase):
     def test_invalid_event_bus_strategy_raises_configuration_error(self) -> None:
         with self.assertRaises(ConfigurationError):
             config_from_mapping({"event_bus": {"backpressure_strategy": "explode"}})
+
+    def test_hermes_defaults_are_disabled(self) -> None:
+        config = config_from_mapping({})
+
+        self.assertFalse(config.hermes.enabled)
+        self.assertEqual(config.hermes.base_url, "")
+        self.assertEqual(config.hermes.token, "")
+        self.assertTrue(config.hermes.require_approval)
+
+    def test_hermes_config_is_parsed(self) -> None:
+        config = config_from_mapping(
+            {
+                "hermes": {
+                    "enabled": True,
+                    "base_url": "http://hermes:8000",
+                    "token": "s3kr3t",
+                    "timeout_seconds": 5,
+                    "notify_on": ["error", "critical"],
+                    "require_approval": False,
+                }
+            }
+        )
+
+        self.assertTrue(config.hermes.enabled)
+        self.assertEqual(config.hermes.base_url, "http://hermes:8000")
+        self.assertEqual(config.hermes.token, "s3kr3t")
+        self.assertEqual(config.hermes.timeout_seconds, 5.0)
+        self.assertEqual(config.hermes.notify_on, ("error", "critical"))
+        self.assertFalse(config.hermes.require_approval)
+
+    def test_hermes_enabled_requires_base_url(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping(
+                {"hermes": {"enabled": True, "base_url": ""}}
+            )
+
+    def test_hermes_invalid_timeout_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping(
+                {
+                    "hermes": {
+                        "enabled": True,
+                        "base_url": "http://hermes:8000",
+                        "timeout_seconds": 0,
+                    }
+                }
+            )
+
+    def test_hermes_invalid_notify_on_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping(
+                {
+                    "hermes": {
+                        "enabled": True,
+                        "base_url": "http://hermes:8000",
+                        "notify_on": "error",
+                    }
+                }
+            )
 
 
 if __name__ == "__main__":

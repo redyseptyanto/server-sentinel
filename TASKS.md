@@ -4,7 +4,7 @@
 - [ ] DOCS-002 Add contributor guide
 
 # Current Sprint
-- [ ] AUDIT-003 Add durable event sink interface
+- [ ] HERMES-001 Define Hermes push integration contract (docs + ADR)
 
 # In Progress
 
@@ -25,3 +25,8 @@
 - [x] DOCS-003 Align SDS with Sentinel core context and integration goals
 - [x] EVENT-003 Add event schema versioning
 - [x] EVENT-004 Add event bus backpressure strategy
+- [x] HERMES-001 Define Hermes push integration contract (docs + ADR)
+- [x] HERMES-002 Add ApprovalProviderPort and NotificationPort core ports
+- [x] HERMES-003 Implement Hermes HTTP client (events + approval)
+- [x] HERMES-004 Wire Hermes notifier + approval provider into composition root
+- [x] HERMES-005 Add tests for Hermes integration

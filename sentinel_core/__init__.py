@@ -13,6 +13,7 @@ from sentinel_core.config import (
     AuditConfig,
     ConfigurationError,
     EventBusConfig,
+    HermesConfig,
     RuntimeConfig,
     SentinelConfig,
     config_from_mapping,
@@ -28,6 +29,12 @@ from sentinel_core.events import (
     EventSeverity,
     InMemoryEventBus,
 )
+from sentinel_core.hermes_client import (
+    HermesApprovalProvider,
+    HermesConnectionError,
+    HermesNotificationHandler,
+)
+from sentinel_core.ports import ApprovalResult, ApprovalProviderPort, NotificationPort
 from sentinel_core.plugins import (
     DiscoveredPluginManifest,
     PLUGIN_MANIFEST_FILENAME,
@@ -58,6 +65,13 @@ __all__ = [
     "EventBusBackpressureError",
     "EventFilter",
     "EventSeverity",
+    "HermesApprovalProvider",
+    "HermesConfig",
+    "HermesConnectionError",
+    "HermesNotificationHandler",
+    "ApprovalResult",
+    "ApprovalProviderPort",
+    "NotificationPort",
     "InMemoryEventBus",
     "JsonlAuditLog",
     "PLUGIN_MANIFEST_FILENAME",

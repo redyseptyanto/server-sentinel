@@ -48,6 +48,29 @@ where the publish call itself fails.
 - enabled: whether to subscribe an audit sink to the event bus.
 - path: JSON Lines audit file path. Required when audit is enabled.
 
+## Hermes Table
+- enabled: whether to subscribe the Hermes notification handler and approval
+  provider to the event bus. Default false.
+- base_url: Hermes endpoint base URL (e.g. `http://hermes:8000`). Required when
+  enabled.
+- token: Bearer token sent in the `Authorization` header.
+- timeout_seconds: HTTP request timeout. Default 10.0. Must be positive.
+- notify_on: list of severity strings that trigger event push. Default
+  `["warning", "error", "critical"]`.
+- require_approval: whether to use the Hermes approval provider for action
+  decisions. Default true.
+
+### Hermes Defaults
+```toml
+[hermes]
+enabled = false
+base_url = ""
+token = ""
+timeout_seconds = 10.0
+notify_on = ["warning", "error", "critical"]
+require_approval = true
+```
+
 ## Validation Rules
 - Unknown event bus kinds are invalid.
 - Event bus capacity must be a positive integer or omitted.
@@ -55,6 +78,11 @@ where the publish call itself fails.
 - Runtime id must be a non-empty string.
 - Audit enabled must be a boolean.
 - Audit path must be a non-empty string when audit is enabled.
+- Hermes enabled must be a boolean.
+- Hermes base_url must be a non-empty string when hermes is enabled.
+- Hermes timeout_seconds must be a positive number.
+- Hermes notify_on must be a list of strings.
+- Hermes require_approval must be a boolean.
 - Configuration errors must fail before runtime startup emits running state.
 
 ## Future Tables
