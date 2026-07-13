@@ -4,7 +4,6 @@
 - [ ] DOCS-002 Add contributor guide
 
 # Current Sprint
-- [ ] HERMES-001 Define Hermes push integration contract (docs + ADR)
 
 # In Progress
 
@@ -30,3 +29,4 @@
 - [x] HERMES-003 Implement Hermes HTTP client (events + approval)
 - [x] HERMES-004 Wire Hermes notifier + approval provider into composition root
 - [x] HERMES-005 Add tests for Hermes integration
+- [x] HERMES-006 End-to-end verification with live Hermes server
