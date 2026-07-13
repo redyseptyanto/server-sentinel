@@ -52,12 +52,22 @@ class SimulationConfig:
 
 
 @dataclass(frozen=True, slots=True)
+class MonitoringConfig:
+    enabled: bool = False
+    interval_seconds: int = 30
+    include_optional: bool = True
+    disk_paths: tuple[str, ...] = ("/",)
+    temp_threshold_celsius: float = 40.0
+
+
+@dataclass(frozen=True, slots=True)
 class SentinelConfig:
     runtime: RuntimeConfig = RuntimeConfig()
     event_bus: EventBusConfig = EventBusConfig()
     audit: AuditConfig = AuditConfig()
     hermes: HermesConfig = HermesConfig()
     simulation: SimulationConfig = SimulationConfig()
+    monitoring: MonitoringConfig = MonitoringConfig()
 
 
 def load_config(path: str | Path | None = None) -> SentinelConfig:
@@ -77,12 +87,14 @@ def config_from_mapping(raw_config: dict[str, Any]) -> SentinelConfig:
     audit = _audit_config(raw_config.get("audit", {}))
     hermes = _hermes_config(raw_config.get("hermes", {}))
     simulation = _simulation_config(raw_config.get("simulation", {}))
+    monitoring = _monitoring_config(raw_config.get("monitoring", {}))
     return SentinelConfig(
         runtime=runtime,
         event_bus=event_bus,
         audit=audit,
         hermes=hermes,
         simulation=simulation,
+        monitoring=monitoring,
     )
 
 
@@ -223,4 +235,48 @@ def _simulation_config(raw_simulation: Any) -> SimulationConfig:
         interval_seconds=interval_seconds,
         temp_threshold_celsius=float(temp_threshold_celsius),
         starting_temp_celsius=float(starting_temp_celsius),
+    )
+
+
+def _monitoring_config(raw_monitoring: Any) -> MonitoringConfig:
+    if not isinstance(raw_monitoring, dict):
+        raise ConfigurationError("monitoring must be a table")
+
+    enabled = raw_monitoring.get("enabled", False)
+    if not isinstance(enabled, bool):
+        raise ConfigurationError("monitoring.enabled must be a boolean")
+
+    interval_seconds = raw_monitoring.get("interval_seconds", 30)
+    if (
+        not isinstance(interval_seconds, int)
+        or isinstance(interval_seconds, bool)
+        or interval_seconds <= 0
+    ):
+        raise ConfigurationError("monitoring.interval_seconds must be a positive integer")
+
+    include_optional = raw_monitoring.get("include_optional", True)
+    if not isinstance(include_optional, bool):
+        raise ConfigurationError("monitoring.include_optional must be a boolean")
+
+    disk_paths = raw_monitoring.get("disk_paths", ["/"])
+    if not isinstance(disk_paths, (list, tuple)):
+        raise ConfigurationError("monitoring.disk_paths must be a list of strings")
+    normalized_paths: list[str] = []
+    for path in disk_paths:
+        if not isinstance(path, str) or not path.strip():
+            raise ConfigurationError("monitoring.disk_paths entries must be non-empty strings")
+        normalized_paths.append(path)
+
+    temp_threshold_celsius = raw_monitoring.get("temp_threshold_celsius", 40.0)
+    if not isinstance(temp_threshold_celsius, (int, float)) or isinstance(
+        temp_threshold_celsius, bool
+    ):
+        raise ConfigurationError("monitoring.temp_threshold_celsius must be numeric")
+
+    return MonitoringConfig(
+        enabled=enabled,
+        interval_seconds=interval_seconds,
+        include_optional=include_optional,
+        disk_paths=tuple(normalized_paths),
+        temp_threshold_celsius=float(temp_threshold_celsius),
     )

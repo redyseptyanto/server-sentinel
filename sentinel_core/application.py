@@ -18,7 +18,19 @@ from sentinel_core.hermes_client import (
 from sentinel_core.policies import ThermalPolicy
 from sentinel_core.runtime import Runtime
 from sentinel_core.scheduler import Scheduler
-from sentinel_core.sensors import SimulatedCpuSensor
+from sentinel_core.sensors import LinuxCommonSensorPack, SimulatedCpuSensor
+
+
+@dataclass(slots=True)
+class ThermalRecoveryRuntime:
+    """Shared thermal policy and action wiring."""
+
+    thermal_policy: ThermalPolicy
+    action_handler: ActionPort
+    _unsubscribe_policy: Callable[[], None] | None = None
+
+    def __post_init__(self) -> None:
+        self._unsubscribe_policy = self.thermal_policy.subscribe()
 
 
 @dataclass(slots=True)
@@ -27,15 +39,11 @@ class SimulationRuntime:
 
     scheduler: Scheduler
     sensor: SimulatedCpuSensor
-    thermal_policy: ThermalPolicy
-    action_handler: ActionPort
     interval_seconds: int
-    _unsubscribe_policy: Callable[[], None] | None = None
     _thread: Thread | None = None
     _stop_event: ThreadEvent | None = None
 
     def __post_init__(self) -> None:
-        self._unsubscribe_policy = self.thermal_policy.subscribe()
         self.scheduler.register(self.sensor.scheduled_job(self.interval_seconds))
         self._stop_event = ThreadEvent()
 
@@ -67,6 +75,48 @@ class SimulationRuntime:
             self._stop_event.wait(poll_interval)
 
 
+@dataclass(slots=True)
+class MonitoringRuntime:
+    """Managed scheduler loop for the Linux common sensor pack."""
+
+    scheduler: Scheduler
+    sensor_pack: LinuxCommonSensorPack
+    interval_seconds: int
+    _thread: Thread | None = None
+    _stop_event: ThreadEvent | None = None
+
+    def __post_init__(self) -> None:
+        self.scheduler.register(self.sensor_pack.scheduled_job(self.interval_seconds))
+        self._stop_event = ThreadEvent()
+
+    def start(self) -> None:
+        if self._thread is not None and self._thread.is_alive():
+            return
+        assert self._stop_event is not None
+        self._stop_event.clear()
+        self._thread = Thread(
+            target=self._run_loop,
+            name="sentinel-monitoring",
+            daemon=True,
+        )
+        self._thread.start()
+
+    def stop(self) -> None:
+        if self._stop_event is None:
+            return
+        self._stop_event.set()
+        if self._thread is not None:
+            self._thread.join(timeout=2.0)
+            self._thread = None
+
+    def _run_loop(self) -> None:
+        assert self._stop_event is not None
+        poll_interval = min(max(self.interval_seconds / 10.0, 0.1), 1.0)
+        while not self._stop_event.is_set():
+            self.scheduler.run_due(now=datetime.now(UTC))
+            self._stop_event.wait(poll_interval)
+
+
 @dataclass(frozen=True, slots=True)
 class SentinelApplication:
     """Composed Sentinel reference runtime."""
@@ -78,14 +128,20 @@ class SentinelApplication:
     scheduler: Scheduler
     hermes_notifier: HermesNotificationHandler | None = None
     hermes_approval_provider: HermesApprovalProvider | None = None
+    thermal_recovery_runtime: ThermalRecoveryRuntime | None = None
     simulation_runtime: SimulationRuntime | None = None
+    monitoring_runtime: MonitoringRuntime | None = None
 
     def start(self) -> None:
         self.runtime.start()
         if self.simulation_runtime is not None:
             self.simulation_runtime.start()
+        if self.monitoring_runtime is not None:
+            self.monitoring_runtime.start()
 
     def stop(self) -> None:
+        if self.monitoring_runtime is not None:
+            self.monitoring_runtime.stop()
         if self.simulation_runtime is not None:
             self.simulation_runtime.stop()
         self.runtime.stop()
@@ -120,16 +176,17 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
             config=resolved_config.hermes
         )
 
-    simulation_runtime: SimulationRuntime | None = None
-    if resolved_config.simulation.enabled:
-        sensor = SimulatedCpuSensor(
-            event_bus=event_bus,
-            starting_temp=resolved_config.simulation.starting_temp_celsius,
+    thermal_recovery_runtime: ThermalRecoveryRuntime | None = None
+    if resolved_config.simulation.enabled or resolved_config.monitoring.enabled:
+        threshold = (
+            resolved_config.simulation.temp_threshold_celsius
+            if resolved_config.simulation.enabled
+            else resolved_config.monitoring.temp_threshold_celsius
         )
         action_handler = SimulatedCoolDownAction(event_bus=event_bus)
         thermal_policy = ThermalPolicy(
             event_bus=event_bus,
-            threshold=resolved_config.simulation.temp_threshold_celsius,
+            threshold=threshold,
             action_handler=lambda request: action_handler.execute(
                 request,
                 approval_provider=(
@@ -139,12 +196,34 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
                 ),
             ),
         )
+        thermal_recovery_runtime = ThermalRecoveryRuntime(
+            thermal_policy=thermal_policy,
+            action_handler=action_handler,
+        )
+
+    simulation_runtime: SimulationRuntime | None = None
+    if resolved_config.simulation.enabled:
+        sensor = SimulatedCpuSensor(
+            event_bus=event_bus,
+            starting_temp=resolved_config.simulation.starting_temp_celsius,
+        )
         simulation_runtime = SimulationRuntime(
             scheduler=scheduler,
             sensor=sensor,
-            thermal_policy=thermal_policy,
-            action_handler=action_handler,
             interval_seconds=resolved_config.simulation.interval_seconds,
+        )
+
+    monitoring_runtime: MonitoringRuntime | None = None
+    if resolved_config.monitoring.enabled:
+        sensor_pack = LinuxCommonSensorPack(
+            event_bus=event_bus,
+            disk_paths=resolved_config.monitoring.disk_paths,
+            include_optional=resolved_config.monitoring.include_optional,
+        )
+        monitoring_runtime = MonitoringRuntime(
+            scheduler=scheduler,
+            sensor_pack=sensor_pack,
+            interval_seconds=resolved_config.monitoring.interval_seconds,
         )
 
     runtime = Runtime(event_bus, runtime_id=resolved_config.runtime.id)
@@ -156,5 +235,7 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
         scheduler=scheduler,
         hermes_notifier=hermes_notifier,
         hermes_approval_provider=hermes_approval_provider,
+        thermal_recovery_runtime=thermal_recovery_runtime,
         simulation_runtime=simulation_runtime,
+        monitoring_runtime=monitoring_runtime,
     )

@@ -15,6 +15,7 @@ from sentinel_core.config import (
     ConfigurationError,
     EventBusConfig,
     HermesConfig,
+    MonitoringConfig,
     RuntimeConfig,
     SimulationConfig,
     SentinelConfig,
@@ -51,7 +52,7 @@ from sentinel_core.plugins import (
 )
 from sentinel_core.runtime import Runtime, RuntimeState
 from sentinel_core.scheduler import ScheduledJob, Scheduler, SchedulerError
-from sentinel_core.sensors import SimulatedCpuSensor
+from sentinel_core.sensors import LinuxCommonSensorPack, SimulatedCpuSensor
 
 __all__ = [
     "ActionAuditError",
@@ -101,7 +102,9 @@ __all__ = [
     "discover_plugin_manifests",
     "load_plugin_manifest",
     "load_config",
+    "LinuxCommonSensorPack",
     "main",
+    "MonitoringConfig",
     "plugin_manifest_from_mapping",
     "ThermalPolicy",
 ]

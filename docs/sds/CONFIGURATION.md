@@ -25,6 +25,13 @@ enabled = false
 interval_seconds = 5
 temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
+
+[monitoring]
+enabled = false
+interval_seconds = 30
+include_optional = true
+disk_paths = ["/"]
+temp_threshold_celsius = 40.0
 ```
 
 ## Runtime Table
@@ -83,6 +90,26 @@ temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
 ```
 
+## Monitoring Table
+- enabled: whether to wire the Linux common sensor pack into the application.
+- interval_seconds: scheduler cadence for the common sensor pack. Default 30.
+- include_optional: whether to probe optional integrations such as Docker,
+  `systemctl`, SMART, NVMe, battery, and GPU where available. Default true.
+- disk_paths: list of filesystem paths to inspect with disk usage probes.
+  Default `["/"]`.
+- temp_threshold_celsius: thermal threshold used by the shared thermal recovery
+  policy when monitoring mode is driving real temperature events. Default 40.0.
+
+### Monitoring Defaults
+```toml
+[monitoring]
+enabled = false
+interval_seconds = 30
+include_optional = true
+disk_paths = ["/"]
+temp_threshold_celsius = 40.0
+```
+
 ### Hermes Defaults
 ```toml
 [hermes]
@@ -110,6 +137,11 @@ require_approval = true
 - Simulation interval_seconds must be a positive integer.
 - Simulation temp_threshold_celsius must be numeric.
 - Simulation starting_temp_celsius must be numeric.
+- Monitoring enabled must be a boolean.
+- Monitoring interval_seconds must be a positive integer.
+- Monitoring include_optional must be a boolean.
+- Monitoring disk_paths must be a list of non-empty strings.
+- Monitoring temp_threshold_celsius must be numeric.
 - Configuration errors must fail before runtime startup emits running state.
 
 ## Current Implementation

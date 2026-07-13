@@ -59,6 +59,7 @@ class ApplicationTests(unittest.TestCase):
         app = create_application(config)
 
         self.assertIsNotNone(app.simulation_runtime)
+        self.assertIsNotNone(app.thermal_recovery_runtime)
         assert app.simulation_runtime is not None
         self.assertEqual(app.simulation_runtime.interval_seconds, 1)
 
@@ -86,6 +87,29 @@ class ApplicationTests(unittest.TestCase):
         self.assertIn("sensor.metric_observed", event_types)
         self.assertIn("policy.action_requested", event_types)
         self.assertIn("action.succeeded", event_types)
+
+    def test_monitoring_runtime_is_wired_when_enabled(self) -> None:
+        config = config_from_mapping(
+            {
+                "audit": {"enabled": False, "path": "unused.jsonl"},
+                "monitoring": {
+                    "enabled": True,
+                    "interval_seconds": 5,
+                    "include_optional": False,
+                    "disk_paths": ["/"],
+                    "temp_threshold_celsius": 55.0,
+                },
+            }
+        )
+
+        app = create_application(config)
+
+        self.assertIsNotNone(app.monitoring_runtime)
+        self.assertIsNotNone(app.thermal_recovery_runtime)
+        assert app.monitoring_runtime is not None
+        assert app.thermal_recovery_runtime is not None
+        self.assertEqual(app.monitoring_runtime.interval_seconds, 5)
+        self.assertEqual(app.thermal_recovery_runtime.thermal_policy.threshold, 55.0)
 
 
 if __name__ == "__main__":

@@ -6,6 +6,7 @@ from sentinel_core import (
     BackpressureStrategy,
     ConfigurationError,
     HermesConfig,
+    MonitoringConfig,
     SimulationConfig,
     config_from_mapping,
     load_config,
@@ -187,6 +188,47 @@ class ConfigTests(unittest.TestCase):
 
         with self.assertRaises(ConfigurationError):
             config_from_mapping({"simulation": {"starting_temp_celsius": "hot"}})
+
+    def test_monitoring_defaults_are_disabled(self) -> None:
+        config = config_from_mapping({})
+
+        self.assertFalse(config.monitoring.enabled)
+        self.assertEqual(config.monitoring.interval_seconds, 30)
+        self.assertTrue(config.monitoring.include_optional)
+        self.assertEqual(config.monitoring.disk_paths, ("/",))
+        self.assertEqual(config.monitoring.temp_threshold_celsius, 40.0)
+
+    def test_monitoring_config_is_parsed(self) -> None:
+        config = config_from_mapping(
+            {
+                "monitoring": {
+                    "enabled": True,
+                    "interval_seconds": 15,
+                    "include_optional": False,
+                    "disk_paths": ["/", "/var"],
+                    "temp_threshold_celsius": 55.0,
+                }
+            }
+        )
+
+        self.assertTrue(config.monitoring.enabled)
+        self.assertEqual(config.monitoring.interval_seconds, 15)
+        self.assertFalse(config.monitoring.include_optional)
+        self.assertEqual(config.monitoring.disk_paths, ("/", "/var"))
+        self.assertEqual(config.monitoring.temp_threshold_celsius, 55.0)
+
+    def test_invalid_monitoring_config_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"monitoring": {"interval_seconds": 0}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"monitoring": {"include_optional": "yes"}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"monitoring": {"disk_paths": ["/", ""]}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"monitoring": {"temp_threshold_celsius": "hot"}})
 
 
 if __name__ == "__main__":

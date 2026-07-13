@@ -56,6 +56,7 @@ Sentinel is in foundation development. The repository now contains:
 - Tick-driven scheduler contract.
 - Event schema versioning.
 - Simulated thermal recovery sensor, policy, and action loop.
+- Linux common sensor pack for real host monitoring on Ubuntu/Linux.
 - Plugin manifest validation.
 - Plugin manifest file discovery.
 - Event bus backpressure strategy (bounded retention with drop_oldest,
@@ -89,7 +90,7 @@ The current sensor value is fake. It repeatedly emits the configured starting
 temperature so we can validate the control loop without touching real host
 state yet.
 
-## Run The Simulation
+## Run Sentinel
 Start from the tracked example config:
 
 ```bash
@@ -97,7 +98,16 @@ cp sentinel.example.toml sentinel.toml
 ```
 
 Then edit `sentinel.toml` in the repository root and replace the Hermes token
-with your real local value:
+with your real local value.
+
+There are two practical modes today:
+
+- `simulation.enabled = true` and `monitoring.enabled = false`
+  Use this to prove the workflow with fake CPU temperature events.
+- `simulation.enabled = false` and `monitoring.enabled = true`
+  Use this to probe real Linux host state with the common sensor pack.
+
+Example config:
 
 ```toml
 [runtime]
@@ -108,10 +118,17 @@ enabled = true
 path = "var/sentinel/audit.jsonl"
 
 [simulation]
-enabled = true
+enabled = false
 interval_seconds = 5
 temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
+
+[monitoring]
+enabled = true
+interval_seconds = 30
+include_optional = true
+disk_paths = ["/", "/var"]
+temp_threshold_celsius = 40.0
 
 [hermes]
 enabled = true
@@ -156,6 +173,10 @@ sentinel run --config sentinel.toml
   `sensor.metric_observed`, `policy.action_requested`, `action.requested`,
   `approval.decision_recorded`, `action.started`, `action.succeeded`,
   `verification.started`, and `verification.succeeded`.
+- With Linux monitoring enabled, Sentinel emits best-effort host facts for CPU,
+  memory, disk, network, process count, boot state, and login sessions, plus
+  optional service, Docker, storage health, battery, and GPU summaries when
+  the host exposes them.
 - With Hermes enabled and reachable, Sentinel pushes warning and higher events
   plus approval requests to Hermes.
 - With Hermes disabled, the simulated non-destructive `cool_down` action still
@@ -171,6 +192,9 @@ tail -f var/sentinel/audit.jsonl
 - The thermal sensor is simulated, not reading real CPU hardware yet.
 - The `cool_down` action is simulated, not changing real processes, fans, or
   thermal state.
+- The Linux common sensor pack is best-effort. Optional probes for Docker,
+  `systemctl`, SMART, NVMe, battery, and GPU only emit data when the host has
+  those capabilities and commands available.
 - Hermes integration depends on Hermes exposing the expected HTTP endpoints on
   the configured `base_url`.
 

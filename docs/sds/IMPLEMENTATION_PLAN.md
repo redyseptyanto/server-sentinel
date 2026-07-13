@@ -60,6 +60,7 @@ Deliverables:
 ## Phase 4: Sensors
 Deliverables:
 - CPU sensor. Partial: simulated CPU thermal sensor is done.
+- Linux common sensor pack. Done.
 - Memory sensor.
 - Disk sensor.
 - NVMe sensor.

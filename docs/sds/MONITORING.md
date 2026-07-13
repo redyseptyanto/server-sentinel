@@ -27,6 +27,16 @@ development. It publishes `sensor.metric_observed` events with a
 `temperature_celsius` field on a scheduler cadence so policy and action flows
 can be tested without host-specific integrations.
 
+The next Linux-first slice also includes a common sensor pack that emits
+best-effort host facts for the most common monitoring domains without requiring
+third-party Python dependencies.
+
+Current implementation status:
+- Simulated thermal sensor: done.
+- Linux common sensor pack: done.
+- Real Docker, SMART, NVMe, battery, GPU, and service probes: best-effort and
+  optional.
+
 ## Event Expectations
 Everything produces events.
 
@@ -46,6 +56,25 @@ The first sensor set should prioritize:
 - `systemd` service state.
 - `journalctl` and relevant system logs.
 - Docker daemon and Compose state.
+
+## Linux Common Sensor Pack
+The common Linux pack should probe:
+- CPU temperature, load average, and frequency where exposed.
+- Memory totals and available memory from `/proc/meminfo`.
+- Disk usage for configured filesystem paths.
+- Network interface operstate and byte counters.
+- Process count, boot time, and uptime.
+- Login sessions from `who`.
+
+Optional probes should run only when the host exposes them:
+- `systemctl` service summary.
+- Docker container summary.
+- SMART and NVMe health.
+- Battery status.
+- GPU status through commands such as `nvidia-smi`.
+
+Missing commands or host capabilities must not crash the runtime. They should
+either skip the probe or emit a deterministic diagnostic event.
 
 Windows and macOS support should preserve the same domain model and event
 contracts while changing only the platform-specific sensor implementations.
