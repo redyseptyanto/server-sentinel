@@ -1,0 +1,10 @@
+[project]
+name = "server-sentinel"
+version = "0.1.0"
+description = "Event-driven host monitoring and autonomous recovery runtime."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Apache-2.0" }
+
+[tool.unittest]
+start-dir = "tests"
