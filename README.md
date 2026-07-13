@@ -258,5 +258,7 @@ The SDS is the source of truth:
 - `docs/sds/AUDIT.md`
 - `docs/sds/PLUGIN_SYSTEM.md`
 - `docs/sds/SAFETY.md`
+- `docs/DEPLOYMENT.md` (Linux systemd + Telegram deployment: the three layers
+  of repo / systemd / external glue)
 
 Architecture decisions live in `docs/adr`.
