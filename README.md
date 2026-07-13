@@ -90,7 +90,14 @@ temperature so we can validate the control loop without touching real host
 state yet.
 
 ## Run The Simulation
-Create a `sentinel.toml` in the repository root:
+Start from the tracked example config:
+
+```bash
+cp sentinel.example.toml sentinel.toml
+```
+
+Then edit `sentinel.toml` in the repository root and replace the Hermes token
+with your real local value:
 
 ```toml
 [runtime]

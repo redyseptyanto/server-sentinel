@@ -1,0 +1,20 @@
+[runtime]
+id = "ubuntu-hermes-host"
+
+[audit]
+enabled = true
+path = "var/sentinel/audit.jsonl"
+
+[simulation]
+enabled = true
+interval_seconds = 5
+temp_threshold_celsius = 40.0
+starting_temp_celsius = 85.0
+
+[hermes]
+enabled = true
+base_url = "http://127.0.0.1:8787"
+token = "YOUR_HERMES_BEARER_TOKEN"
+timeout_seconds = 10.0
+notify_on = ["warning", "error", "critical"]
+require_approval = true
