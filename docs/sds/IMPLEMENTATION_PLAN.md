@@ -27,7 +27,8 @@ Deliverables:
 - Destructive action audit sequence. Done.
 - Plugin manifest discovery. Done.
 - Scheduler contract. Done.
-- Event schema versioning. Next.
+- Event schema versioning. Done.
+- Event bus backpressure strategy. Next.
 
 Exit criteria:
 - Tests run locally with no external services.
@@ -47,7 +48,7 @@ Deliverables:
 - Subscription filtering. Done.
 - Backpressure strategy.
 - Durable event sink interface.
-- Event schema versioning.
+- Event schema versioning. Done.
 
 ## Phase 3: Plugin System
 Deliverables:

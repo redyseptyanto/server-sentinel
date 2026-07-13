@@ -5,6 +5,7 @@ subsystems and plugins.
 
 ## Envelope
 Required fields:
+- schema_version: stable event schema version string.
 - id: UUID string.
 - type: namespaced event type such as `runtime.state_changed`.
 - source: component or plugin that emitted the event.
@@ -14,6 +15,21 @@ Required fields:
 - correlation_id: workflow identifier shared by related events.
 - causation_id: identifier of the event that directly caused this event.
 - data: JSON-compatible object.
+
+## Schema Versioning
+The event envelope is versioned explicitly so integrations can evolve without
+guessing from payload shape.
+
+Rules:
+- Every event MUST include `schema_version`.
+- A new required top-level envelope field requires a schema version change.
+- Additive changes to event-specific `data` should preserve backwards
+  compatibility where practical.
+- Consumers should reject unknown major versions and may accept newer minor
+  versions when the required fields they depend on are still present.
+
+Initial reference version:
+- `1.0`
 
 ## Type Naming
 Event types use lowercase dotted names:

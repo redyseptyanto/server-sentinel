@@ -5,8 +5,11 @@ Sentinel is an AI-native, event-driven, cross-platform Host Monitoring & Autonom
 ## Vision
 Observe intelligently. Act safely.
 
-AI agents (Hermes, OpenAI Agents, Claude, etc.) perform reasoning.
-Sentinel observes, validates, executes approved actions, verifies outcomes and records audit history.
+Sentinel is not an AI assistant.
+It is the trusted execution and observability layer for AI-managed systems.
+
+AI agents such as Hermes perform reasoning.
+Sentinel observes, validates, recommends, executes approved actions, verifies outcomes, and records audit history.
 
 ## Core Principles
 - AI decides. Sentinel executes.
@@ -15,6 +18,31 @@ Sentinel observes, validates, executes approved actions, verifies outcomes and r
 - Cross-platform.
 - Human override always wins.
 - Security first.
+
+## Responsibilities
+- Continuously observe the operating system and applications.
+- Collect metrics, diagnostics, logs, and system state.
+- Emit structured events.
+- Evaluate configurable policies.
+- Recommend safe recovery actions.
+- Request approval from Hermes or another approval provider when required.
+- Execute approved actions.
+- Verify whether the action solved the problem.
+- Record everything in an audit log.
+
+## Scope
+- Linux first, then Windows and macOS without changing the core architecture.
+- Hardware, operating system, container, and application monitoring.
+- Hermes integration through stable APIs instead of direct system access.
+- Telegram notifications and approval workflows through plugins.
+
+## Safety Rules
+- Never blindly execute AI-generated shell commands.
+- Never delete files without explicit approval.
+- Never stop SSH by default.
+- Never stop databases by default.
+- Never perform irreversible actions without confirmation.
+- Never trust AI reasoning without validation.
 
 ## Current Status
 Sentinel is in foundation development. The repository now contains:
@@ -25,6 +53,7 @@ Sentinel is in foundation development. The repository now contains:
 - Runtime composition with optional audit logging.
 - Destructive action audit sequencing.
 - Tick-driven scheduler contract.
+- Event schema versioning.
 - Plugin manifest validation.
 - Plugin manifest file discovery.
 - Unit tests for events, runtime lifecycle, configuration, audit logging,
@@ -56,6 +85,8 @@ The SDS is the source of truth:
 - `docs/sds/DOMAIN_MODEL.md`
 - `docs/sds/IMPLEMENTATION_PLAN.md`
 - `docs/sds/CONFIGURATION.md`
+- `docs/sds/MONITORING.md`
+- `docs/sds/INTEGRATIONS.md`
 - `docs/sds/SCHEDULER.md`
 - `docs/sds/EVENTS.md`
 - `docs/sds/RUNTIME.md`

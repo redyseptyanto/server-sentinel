@@ -15,6 +15,7 @@ from uuid import uuid4
 JsonValue = None | bool | int | float | str | list["JsonValue"] | dict[str, "JsonValue"]
 EventHandler = Callable[["Event"], None]
 EventFilter = Callable[["Event"], bool]
+EVENT_SCHEMA_VERSION = "1.0"
 
 
 class EventSeverity(StrEnum):
@@ -36,6 +37,7 @@ class Event:
     subject: str
     data: dict[str, JsonValue] = field(default_factory=dict)
     severity: EventSeverity = EventSeverity.INFO
+    schema_version: str = EVENT_SCHEMA_VERSION
     id: str = field(default_factory=lambda: str(uuid4()))
     occurred_at: datetime = field(default_factory=lambda: datetime.now(UTC))
     correlation_id: str = field(default_factory=lambda: str(uuid4()))
@@ -48,6 +50,8 @@ class Event:
             raise ValueError("event source is required")
         if not self.subject.strip():
             raise ValueError("event subject is required")
+        if not self.schema_version.strip():
+            raise ValueError("event schema_version is required")
         if self.occurred_at.tzinfo is None:
             raise ValueError("event occurred_at must be timezone-aware")
         object.__setattr__(self, "data", MappingProxyType(dict(self.data)))
@@ -56,6 +60,7 @@ class Event:
         """Return a JSON-compatible audit/event record."""
 
         return {
+            "schema_version": self.schema_version,
             "id": self.id,
             "type": self.type,
             "source": self.source,

@@ -19,6 +19,7 @@ from sentinel_core.config import (
     load_config,
 )
 from sentinel_core.events import (
+    EVENT_SCHEMA_VERSION,
     Event,
     EventBus,
     EventFilter,
@@ -46,6 +47,7 @@ __all__ = [
     "AuditConfig",
     "ApprovalDecision",
     "ConfigurationError",
+    "EVENT_SCHEMA_VERSION",
     "DiscoveredPluginManifest",
     "Event",
     "EventBusConfig",

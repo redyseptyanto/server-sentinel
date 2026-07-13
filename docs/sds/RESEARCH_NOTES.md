@@ -50,3 +50,30 @@ Relevant concepts:
 Sentinel application:
 - Policy and sensor packs should group related host checks.
 - Scheduled sensors should emit events that can be audited and replayed.
+
+## Made-By-Adem/linux-server-telegram-bot
+Source: https://github.com/Made-By-Adem/linux-server-telegram-bot
+
+Relevant concepts:
+- Telegram and HTTP API can share one operational surface for monitoring and
+  control.
+- Configuration that is hot-reloadable reduces operator friction.
+- State-change alerting avoids noisy repeated notifications.
+- The operator experience benefits from one place to receive alerts, approvals,
+  and recovery progress updates.
+
+Sentinel application:
+- Approval providers and notification plugins should share stable event and
+  action contracts so Telegram, CLI, REST, or Hermes integrations behave
+  consistently.
+- Sentinel should support state-change and threshold-based alert policies
+  rather than simple repeated polling alerts.
+- Configuration should remain human-readable and eventually reloadable without
+  changing the core event model.
+
+Important differences:
+- Sentinel is not a Telegram bot with extra APIs. It is a trusted execution and
+  observability layer with interchangeable interfaces.
+- Sentinel must not give AI agents unrestricted shell access.
+- Sentinel should prefer explicit action definitions and approval workflows over
+  arbitrary command execution.

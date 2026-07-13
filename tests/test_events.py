@@ -1,6 +1,6 @@
 import unittest
 
-from sentinel_core import Event, EventSeverity, InMemoryEventBus
+from sentinel_core import EVENT_SCHEMA_VERSION, Event, EventSeverity, InMemoryEventBus
 
 
 class EventTests(unittest.TestCase):
@@ -13,6 +13,14 @@ class EventTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             Event(type="runtime.state_changed", source="test", subject="")
+
+        with self.assertRaises(ValueError):
+            Event(
+                type="runtime.state_changed",
+                source="test",
+                subject="runtime",
+                schema_version="",
+            )
 
     def test_event_record_is_json_compatible(self) -> None:
         event = Event(
@@ -27,8 +35,14 @@ class EventTests(unittest.TestCase):
 
         self.assertEqual(event.to_record()["type"], "runtime.state_changed")
         self.assertEqual(event.to_record()["severity"], "info")
+        self.assertEqual(event.to_record()["schema_version"], EVENT_SCHEMA_VERSION)
         self.assertEqual(event.to_record()["correlation_id"], "correlation-1")
         self.assertEqual(event.to_record()["causation_id"], "event-0")
+
+    def test_event_uses_default_schema_version(self) -> None:
+        event = Event(type="test.event", source="test", subject="runtime")
+
+        self.assertEqual(event.schema_version, EVENT_SCHEMA_VERSION)
 
 
 class InMemoryEventBusTests(unittest.TestCase):
