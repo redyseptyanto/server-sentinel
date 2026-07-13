@@ -34,3 +34,4 @@
 - [x] SENSOR-001 Add simulated CPU thermal sensor
 - [x] POLICY-001 Add thermal recovery policy simulation
 - [x] ACTION-001 Add simulated cool_down action flow
+- [x] CLI-001 Add runtime start and config validation commands

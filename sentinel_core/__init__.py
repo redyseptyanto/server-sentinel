@@ -21,6 +21,7 @@ from sentinel_core.config import (
     config_from_mapping,
     load_config,
 )
+from sentinel_core.cli import build_parser, main
 from sentinel_core.events import (
     EVENT_SCHEMA_VERSION,
     BackpressureStrategy,
@@ -61,6 +62,7 @@ __all__ = [
     "AuditConfig",
     "ApprovalDecision",
     "BackpressureStrategy",
+    "build_parser",
     "ConfigurationError",
     "EVENT_SCHEMA_VERSION",
     "DiscoveredPluginManifest",
@@ -99,6 +101,7 @@ __all__ = [
     "discover_plugin_manifests",
     "load_plugin_manifest",
     "load_config",
+    "main",
     "plugin_manifest_from_mapping",
     "ThermalPolicy",
 ]

@@ -110,8 +110,8 @@ Deliverables:
 
 ## Phase 11: CLI
 Deliverables:
-- Runtime start command.
-- Config validation command.
+- Runtime start command. Done.
+- Config validation command. Done.
 - Audit inspection command.
 - Plugin inspection command.
 

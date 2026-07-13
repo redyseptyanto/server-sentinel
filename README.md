@@ -50,6 +50,7 @@ Sentinel is in foundation development. The repository now contains:
 - ADR 0001 for the initial reference runtime.
 - A stdlib-only Python reference core.
 - Configuration loading and validation.
+- A stdlib-only CLI entrypoint for runtime start and config validation.
 - Runtime composition with optional audit logging.
 - Destructive action audit sequencing.
 - Tick-driven scheduler contract.
@@ -64,26 +65,107 @@ Sentinel is in foundation development. The repository now contains:
   endpoint, token, timeout, and severity filter.
 - Unit tests for events, runtime lifecycle, configuration, audit logging,
   action audit sequencing, scheduler behavior, plugin manifests,
-  Hermes client, Hermes config, and thermal recovery simulation.
+  Hermes client, Hermes config, thermal recovery simulation, and CLI commands.
 
 ## Run Tests
-```powershell
+```bash
 python -m unittest discover -s tests
 ```
 
-## Minimal Runtime Example
-```python
-from sentinel_core import config_from_mapping, create_application
+## How It Works
+Today the runnable path is a safe simulation of Sentinel's recovery loop:
 
-config = config_from_mapping({
-    "runtime": {"id": "edge-node-1"},
-    "audit": {"enabled": True, "path": "var/sentinel/audit.jsonl"},
-})
+- a simulated CPU sensor emits `sensor.metric_observed`
+- the thermal policy watches `temperature_celsius`
+- when the temperature is above threshold, Sentinel emits
+  `policy.action_requested`
+- the simulated `cool_down` action goes through the audit flow
+- if Hermes is enabled, Sentinel pushes notifications and approval requests to
+  Hermes over HTTP
+- if Hermes is disabled, the non-destructive simulation action auto-approves
+  locally so the workflow can still be tested
 
-app = create_application(config)
-app.start()
-app.stop()
+The current sensor value is fake. It repeatedly emits the configured starting
+temperature so we can validate the control loop without touching real host
+state yet.
+
+## Run The Simulation
+Create a `sentinel.toml` in the repository root:
+
+```toml
+[runtime]
+id = "ubuntu-hermes-host"
+
+[audit]
+enabled = true
+path = "var/sentinel/audit.jsonl"
+
+[simulation]
+enabled = true
+interval_seconds = 5
+temp_threshold_celsius = 40.0
+starting_temp_celsius = 85.0
+
+[hermes]
+enabled = true
+base_url = "http://127.0.0.1:8787"
+token = "YOUR_HERMES_BEARER_TOKEN"
+timeout_seconds = 10.0
+notify_on = ["warning", "error", "critical"]
+require_approval = true
 ```
+
+Validate the config:
+
+```bash
+python -m sentinel_core validate-config --config sentinel.toml
+```
+
+Start Sentinel:
+
+```bash
+python -m sentinel_core run --config sentinel.toml
+```
+
+For a short test run that exits on its own:
+
+```bash
+python -m sentinel_core run --config sentinel.toml --duration-seconds 15
+```
+
+If you install the project as a package, the same commands are available
+through the `sentinel` executable:
+
+```bash
+sentinel validate-config --config sentinel.toml
+sentinel run --config sentinel.toml
+```
+
+## What To Expect
+- Sentinel starts and stays in the foreground until `Ctrl+C` or the optional
+  duration expires.
+- Audit records are written to `var/sentinel/audit.jsonl`.
+- With simulation enabled, you should see events for:
+  `sensor.metric_observed`, `policy.action_requested`, `action.requested`,
+  `approval.decision_recorded`, `action.started`, `action.succeeded`,
+  `verification.started`, and `verification.succeeded`.
+- With Hermes enabled and reachable, Sentinel pushes warning and higher events
+  plus approval requests to Hermes.
+- With Hermes disabled, the simulated non-destructive `cool_down` action still
+  runs so you can test the loop locally.
+
+Watch the audit log while it runs:
+
+```bash
+tail -f var/sentinel/audit.jsonl
+```
+
+## Current Caveats
+- The thermal sensor is simulated, not reading real CPU hardware yet.
+- The `cool_down` action is simulated, not changing real processes, fans, or
+  thermal state.
+- Hermes integration depends on Hermes exposing the expected HTTP endpoints on
+  the configured `base_url`.
 
 ## Documentation
 The SDS is the source of truth:
