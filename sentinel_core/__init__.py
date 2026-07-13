@@ -9,7 +9,12 @@ from sentinel_core.action_audit import (
     ActionSafety,
     ApprovalDecision,
 )
-from sentinel_core.actions import ActionPort, SimulatedCoolDownAction
+from sentinel_core.actions import (
+    ActionPort,
+    ActionRouter,
+    SimulatedCoolDownAction,
+    SimulatedMitigationAction,
+)
 from sentinel_core.config import (
     AuditConfig,
     ConfigurationError,
@@ -19,6 +24,7 @@ from sentinel_core.config import (
     RuntimeConfig,
     SimulationConfig,
     SentinelConfig,
+    ThermalPolicyConfig,
     config_from_mapping,
     load_config,
 )
@@ -58,6 +64,7 @@ __all__ = [
     "ActionAuditError",
     "ActionAuditRecorder",
     "ActionPort",
+    "ActionRouter",
     "ActionRequest",
     "ActionSafety",
     "AuditConfig",
@@ -95,6 +102,7 @@ __all__ = [
     "SentinelApplication",
     "SentinelConfig",
     "SimulatedCoolDownAction",
+    "SimulatedMitigationAction",
     "SimulatedCpuSensor",
     "SimulationConfig",
     "config_from_mapping",
@@ -107,4 +115,5 @@ __all__ = [
     "MonitoringConfig",
     "plugin_manifest_from_mapping",
     "ThermalPolicy",
+    "ThermalPolicyConfig",
 ]

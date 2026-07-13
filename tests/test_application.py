@@ -86,7 +86,8 @@ class ApplicationTests(unittest.TestCase):
         event_types = [event.type for event in app.event_bus.events]
         self.assertIn("sensor.metric_observed", event_types)
         self.assertIn("policy.action_requested", event_types)
-        self.assertIn("action.succeeded", event_types)
+        self.assertIn("action.requested", event_types)
+        self.assertIn("approval.decision_recorded", event_types)
 
     def test_monitoring_runtime_is_wired_when_enabled(self) -> None:
         config = config_from_mapping(
@@ -97,7 +98,10 @@ class ApplicationTests(unittest.TestCase):
                     "interval_seconds": 5,
                     "include_optional": False,
                     "disk_paths": ["/"],
-                    "temp_threshold_celsius": 55.0,
+                },
+                "thermal_policy": {
+                    "warning_cpu_threshold_celsius": 72.0,
+                    "top_process_count": 4,
                 },
             }
         )
@@ -109,7 +113,11 @@ class ApplicationTests(unittest.TestCase):
         assert app.monitoring_runtime is not None
         assert app.thermal_recovery_runtime is not None
         self.assertEqual(app.monitoring_runtime.interval_seconds, 5)
-        self.assertEqual(app.thermal_recovery_runtime.thermal_policy.threshold, 55.0)
+        self.assertEqual(
+            app.thermal_recovery_runtime.thermal_policy.config.warning_cpu_threshold_celsius,
+            72.0,
+        )
+        self.assertEqual(app.monitoring_runtime.sensor_pack.top_process_count, 4)
 
 
 if __name__ == "__main__":

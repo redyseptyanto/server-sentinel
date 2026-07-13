@@ -10,6 +10,7 @@ from sentinel_core import (
     SimulationConfig,
     config_from_mapping,
     load_config,
+    ThermalPolicyConfig,
 )
 
 
@@ -229,6 +230,74 @@ class ConfigTests(unittest.TestCase):
 
         with self.assertRaises(ConfigurationError):
             config_from_mapping({"monitoring": {"temp_threshold_celsius": "hot"}})
+
+    def test_thermal_policy_defaults_are_loaded(self) -> None:
+        config = config_from_mapping({})
+
+        self.assertEqual(config.thermal_policy.warning_cpu_threshold_celsius, 70.0)
+        self.assertEqual(config.thermal_policy.warning_nvme_threshold_celsius, 80.0)
+        self.assertEqual(config.thermal_policy.rearm_below_celsius, 60.0)
+        self.assertEqual(config.thermal_policy.top_process_count, 3)
+
+    def test_thermal_policy_config_is_parsed(self) -> None:
+        config = config_from_mapping(
+            {
+                "thermal_policy": {
+                    "warning_cpu_threshold_celsius": 68.0,
+                    "warning_nvme_threshold_celsius": 79.0,
+                    "rearm_below_celsius": 58.0,
+                    "critical_cpu_threshold_celsius": 83.0,
+                    "emergency_cpu_threshold_celsius": 93.0,
+                    "emergency_hold_seconds": 15,
+                    "approval_timeout_seconds": 20,
+                    "protected_process_patterns": ["systemd", "sshd"],
+                    "top_process_count": 4,
+                }
+            }
+        )
+
+        self.assertEqual(config.thermal_policy.warning_cpu_threshold_celsius, 68.0)
+        self.assertEqual(config.thermal_policy.warning_nvme_threshold_celsius, 79.0)
+        self.assertEqual(config.thermal_policy.rearm_below_celsius, 58.0)
+        self.assertEqual(config.thermal_policy.critical_cpu_threshold_celsius, 83.0)
+        self.assertEqual(config.thermal_policy.emergency_cpu_threshold_celsius, 93.0)
+        self.assertEqual(config.thermal_policy.emergency_hold_seconds, 15.0)
+        self.assertEqual(config.thermal_policy.approval_timeout_seconds, 20.0)
+        self.assertEqual(config.thermal_policy.protected_process_patterns, ("systemd", "sshd"))
+        self.assertEqual(config.thermal_policy.top_process_count, 4)
+
+    def test_invalid_thermal_policy_config_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"thermal_policy": {"warning_cpu_threshold_celsius": "hot"}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"thermal_policy": {"emergency_hold_seconds": 0}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"thermal_policy": {"protected_process_patterns": ["sshd", ""]}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"thermal_policy": {"top_process_count": 0}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping(
+                {
+                    "thermal_policy": {
+                        "warning_cpu_threshold_celsius": 90.0,
+                        "critical_cpu_threshold_celsius": 85.0,
+                    }
+                }
+            )
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping(
+                {
+                    "thermal_policy": {
+                        "critical_cpu_threshold_celsius": 96.0,
+                        "emergency_cpu_threshold_celsius": 95.0,
+                    }
+                }
+            )
 
 
 if __name__ == "__main__":

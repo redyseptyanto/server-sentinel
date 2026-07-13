@@ -8,7 +8,6 @@ path = "var/sentinel/audit.jsonl"
 [simulation]
 enabled = false
 interval_seconds = 5
-temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
 
 [monitoring]
@@ -16,7 +15,28 @@ enabled = true
 interval_seconds = 30
 include_optional = true
 disk_paths = ["/", "/var"]
-temp_threshold_celsius = 40.0
+
+[thermal_policy]
+# Compact Ryzen mini-PC starting point, suitable for a Geekom A8 class host.
+warning_cpu_threshold_celsius = 70.0
+warning_nvme_threshold_celsius = 80.0
+rearm_below_celsius = 60.0
+critical_cpu_threshold_celsius = 85.0
+emergency_cpu_threshold_celsius = 95.0
+emergency_hold_seconds = 30
+approval_timeout_seconds = 30
+protected_process_patterns = [
+  "systemd",
+  "sshd",
+  "NetworkManager",
+  "dbus-daemon",
+  "dockerd",
+  "containerd",
+  "postgres",
+  "mysqld",
+  "mongod",
+]
+top_process_count = 3
 
 [hermes]
 enabled = true

@@ -36,6 +36,8 @@ Current implementation status:
 - Linux common sensor pack: done.
 - Real Docker, SMART, NVMe, battery, GPU, and service probes: best-effort and
   optional.
+- Top process summaries by CPU and memory: done for the Linux pack.
+- Docker engine and container summary: done for the Linux pack.
 
 ## Event Expectations
 Everything produces events.
@@ -59,16 +61,18 @@ The first sensor set should prioritize:
 
 ## Linux Common Sensor Pack
 The common Linux pack should probe:
-- CPU temperature, load average, and frequency where exposed.
+- CPU temperature, approximate utilization, load average, and frequency where
+  exposed.
 - Memory totals and available memory from `/proc/meminfo`.
 - Disk usage for configured filesystem paths.
 - Network interface operstate and byte counters.
-- Process count, boot time, and uptime.
+- Process count, boot time, uptime, and top processes by CPU and memory.
 - Login sessions from `who`.
 
 Optional probes should run only when the host exposes them:
 - `systemctl` service summary.
-- Docker container summary.
+- Docker engine and container summary, including a compact list of hot or
+  unhealthy containers.
 - SMART and NVMe health.
 - Battery status.
 - GPU status through commands such as `nvidia-smi`.

@@ -113,6 +113,8 @@ class LinuxCommonSensorPackTests(unittest.TestCase):
 
         with patch.object(LinuxCommonSensorPack, "_read_cpu_temperature", return_value=81.2), patch.object(
             LinuxCommonSensorPack, "_read_cpu_frequency_mhz", return_value=2300.0
+        ), patch.object(
+            LinuxCommonSensorPack, "_read_cpu_utilization_percent", return_value=37.5
         ), patch("sentinel_core.sensors.os.cpu_count", return_value=4), patch(
             "sentinel_core.sensors.os.getloadavg",
             return_value=(2.0, 1.0, 0.5),
@@ -124,6 +126,21 @@ class LinuxCommonSensorPackTests(unittest.TestCase):
         self.assertEqual(reading.data["temperature_celsius"], 81.2)
         self.assertEqual(reading.data["frequency_mhz"], 2300.0)
         self.assertEqual(reading.data["cpu_count"], 4)
+        self.assertEqual(reading.data["utilization_percent"], 37.5)
+
+    def test_cpu_utilization_percent_uses_jiffy_deltas(self) -> None:
+        pack = LinuxCommonSensorPack(event_bus=InMemoryEventBus())
+
+        with patch.object(
+            LinuxCommonSensorPack,
+            "_read_cpu_times",
+            side_effect=[(120, 200), (180, 300)],
+        ):
+            first = pack._read_cpu_utilization_percent()
+            second = pack._read_cpu_utilization_percent()
+
+        self.assertIsNone(first)
+        self.assertEqual(second, 60.0)
 
 
 if __name__ == "__main__":

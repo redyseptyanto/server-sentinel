@@ -54,7 +54,6 @@ class CliTests(unittest.TestCase):
                         "[simulation]",
                         "enabled = true",
                         "interval_seconds = 1",
-                        "temp_threshold_celsius = 40.0",
                         "starting_temp_celsius = 85.0",
                     ]
                 ),
@@ -85,7 +84,9 @@ class CliTests(unittest.TestCase):
             event_types = [record["type"] for record in records]
             self.assertIn("sensor.metric_observed", event_types)
             self.assertIn("policy.action_requested", event_types)
-            self.assertIn("action.succeeded", event_types)
+            self.assertIn("action.requested", event_types)
+            self.assertIn("action.approval_required", event_types)
+            self.assertIn("approval.decision_recorded", event_types)
 
 
 if __name__ == "__main__":

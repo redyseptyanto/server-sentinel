@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import json
 import os
 from pathlib import Path
@@ -58,7 +58,12 @@ class LinuxCommonSensorPack:
     event_bus: EventBus
     disk_paths: tuple[str, ...] = ("/",)
     include_optional: bool = True
+    top_process_count: int = 3
     command_timeout_seconds: float = 2.0
+    _previous_cpu_busy_jiffies: int | None = field(default=None, init=False)
+    _previous_cpu_total_usage_jiffies: int | None = field(default=None, init=False)
+    _previous_total_cpu_jiffies: int | None = field(default=None, init=False)
+    _previous_process_cpu_jiffies: dict[int, int] = field(default_factory=dict, init=False)
 
     def observe(self) -> tuple[Event, ...]:
         """Probe common host facts and emit metric events."""
@@ -136,6 +141,10 @@ class LinuxCommonSensorPack:
             "load_15m": round(load_15m, 4),
             "utilization_ratio_1m": round(load_1m / cpu_count, 4),
         }
+
+        utilization_percent = self._read_cpu_utilization_percent()
+        if utilization_percent is not None:
+            data["utilization_percent"] = utilization_percent
 
         temperature = self._read_cpu_temperature()
         if temperature is not None:
@@ -223,13 +232,29 @@ class LinuxCommonSensorPack:
 
     def _read_process_metrics(self) -> SensorReading | None:
         try:
-            process_count = sum(1 for entry in os.listdir("/proc") if entry.isdigit())
+            pids = [int(entry) for entry in os.listdir("/proc") if entry.isdigit()]
         except OSError:
             return None
+        process_count = len(pids)
+
+        total_cpu_jiffies = self._read_total_cpu_jiffies()
+        process_snapshots: list[dict[str, object]] = []
+        for pid in pids:
+            snapshot = self._read_process_snapshot(pid)
+            if snapshot is not None:
+                process_snapshots.append(snapshot)
+
+        top_cpu_processes = self._top_cpu_processes(process_snapshots, total_cpu_jiffies)
+        top_memory_processes = self._top_memory_processes(process_snapshots)
+
         return SensorReading(
             subject="host.processes",
             source="sentinel.sensor.linux.processes",
-            data={"process_count": process_count},
+            data={
+                "process_count": process_count,
+                "top_cpu_processes": top_cpu_processes,
+                "top_memory_processes": top_memory_processes,
+            },
         )
 
     def _read_boot_metrics(self) -> SensorReading | None:
@@ -296,7 +321,9 @@ class LinuxCommonSensorPack:
         )
 
     def _read_docker_metrics(self) -> SensorReading | None:
-        output = self._run_command(("docker", "ps", "-a", "--format", "{{.Status}}"))
+        output = self._run_command(
+            ("docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Status}}")
+        )
         if output is None:
             return None
 
@@ -304,23 +331,38 @@ class LinuxCommonSensorPack:
         running = 0
         exited = 0
         unhealthy = 0
+        container_summaries: list[dict[str, object]] = []
         for status in statuses:
-            lowered = status.lower()
-            if lowered.startswith("up"):
+            parts = status.split("\t")
+            if len(parts) < 3:
+                continue
+            name, state, human_status = parts[0], parts[1], parts[2]
+            lowered = human_status.lower()
+            if state == "running":
                 running += 1
-            if lowered.startswith("exited"):
+            if state == "exited":
                 exited += 1
             if "unhealthy" in lowered:
                 unhealthy += 1
+            container_summaries.append(
+                {
+                    "name": name,
+                    "state": state,
+                    "status": human_status,
+                    "unhealthy": "unhealthy" in lowered,
+                }
+            )
 
         return SensorReading(
             subject="host.docker",
             source="sentinel.sensor.linux.docker",
             data={
+                "engine_available": True,
                 "container_count": len(statuses),
                 "running_count": running,
                 "exited_count": exited,
                 "unhealthy_count": unhealthy,
+                "containers": container_summaries[: self.top_process_count],
             },
         )
 
@@ -393,6 +435,29 @@ class LinuxCommonSensorPack:
                 devices = payload.get("Devices", [])
                 if isinstance(devices, list):
                     data["nvme_device_count"] = len(devices)
+                    temperatures: list[float] = []
+                    for device in devices:
+                        if not isinstance(device, dict):
+                            continue
+                        device_path = device.get("DevicePath")
+                        if not isinstance(device_path, str) or not device_path:
+                            continue
+                        smart_output = self._run_command(
+                            ("nvme", "smart-log", "-o", "json", device_path)
+                        )
+                        if smart_output is None:
+                            continue
+                        try:
+                            smart_payload = json.loads(smart_output)
+                        except json.JSONDecodeError:
+                            continue
+                        temperature = self._parse_nvme_temperature_celsius(
+                            smart_payload.get("temperature")
+                        )
+                        if temperature is not None:
+                            temperatures.append(temperature)
+                    if temperatures:
+                        data["max_nvme_temperature_celsius"] = max(temperatures)
             except json.JSONDecodeError:
                 pass
 
@@ -486,6 +551,147 @@ class LinuxCommonSensorPack:
         if not frequencies:
             return None
         return round(sum(frequencies) / len(frequencies), 2)
+
+    def _read_cpu_utilization_percent(self) -> float | None:
+        cpu_times = self._read_cpu_times()
+        if cpu_times is None:
+            return None
+
+        busy_jiffies, total_jiffies = cpu_times
+        if (
+            self._previous_cpu_busy_jiffies is None
+            or self._previous_cpu_total_usage_jiffies is None
+        ):
+            self._previous_cpu_busy_jiffies = busy_jiffies
+            self._previous_cpu_total_usage_jiffies = total_jiffies
+            return None
+
+        busy_delta = busy_jiffies - self._previous_cpu_busy_jiffies
+        total_delta = total_jiffies - self._previous_cpu_total_usage_jiffies
+        self._previous_cpu_busy_jiffies = busy_jiffies
+        self._previous_cpu_total_usage_jiffies = total_jiffies
+        if total_delta <= 0 or busy_delta < 0:
+            return None
+        return round((busy_delta / total_delta) * 100.0, 2)
+
+    def _read_cpu_times(self) -> tuple[int, int] | None:
+        stat_text = self._read_text("/proc/stat")
+        if stat_text is None:
+            return None
+
+        for line in stat_text.splitlines():
+            if not line.startswith("cpu "):
+                continue
+            parts = line.split()[1:]
+            try:
+                counters = [int(part) for part in parts]
+            except ValueError:
+                return None
+            total = sum(counters)
+            idle = counters[3] + (counters[4] if len(counters) > 4 else 0)
+            busy = total - idle
+            return busy, total
+        return None
+
+    def _read_total_cpu_jiffies(self) -> int | None:
+        stat_text = self._read_text("/proc/stat")
+        if stat_text is None:
+            return None
+        for line in stat_text.splitlines():
+            if not line.startswith("cpu "):
+                continue
+            parts = line.split()[1:]
+            try:
+                return sum(int(part) for part in parts)
+            except ValueError:
+                return None
+        return None
+
+    def _read_process_snapshot(self, pid: int) -> dict[str, object] | None:
+        stat_text = self._read_text(f"/proc/{pid}/stat")
+        status_text = self._read_text(f"/proc/{pid}/status")
+        if stat_text is None or status_text is None:
+            return None
+
+        stat_parts = stat_text.split()
+        if len(stat_parts) < 15:
+            return None
+
+        try:
+            cpu_jiffies = int(stat_parts[13]) + int(stat_parts[14])
+        except ValueError:
+            return None
+
+        name = self._parse_process_name(status_text) or stat_parts[1].strip("()")
+        memory_rss_kb = self._parse_process_rss_kb(status_text)
+
+        return {
+            "pid": pid,
+            "name": name,
+            "cpu_jiffies": cpu_jiffies,
+            "memory_rss_kb": memory_rss_kb,
+        }
+
+    def _top_cpu_processes(
+        self,
+        snapshots: list[dict[str, object]],
+        total_cpu_jiffies: int | None,
+    ) -> list[dict[str, object]]:
+        if total_cpu_jiffies is None or self._previous_total_cpu_jiffies is None:
+            self._previous_total_cpu_jiffies = total_cpu_jiffies
+            self._previous_process_cpu_jiffies = {
+                int(snapshot["pid"]): int(snapshot["cpu_jiffies"])
+                for snapshot in snapshots
+            }
+            return []
+
+        total_delta = total_cpu_jiffies - self._previous_total_cpu_jiffies
+        if total_delta <= 0:
+            self._previous_total_cpu_jiffies = total_cpu_jiffies
+            self._previous_process_cpu_jiffies = {
+                int(snapshot["pid"]): int(snapshot["cpu_jiffies"])
+                for snapshot in snapshots
+            }
+            return []
+
+        scored: list[dict[str, object]] = []
+        next_snapshot: dict[int, int] = {}
+        for snapshot in snapshots:
+            pid = int(snapshot["pid"])
+            cpu_jiffies = int(snapshot["cpu_jiffies"])
+            previous = self._previous_process_cpu_jiffies.get(pid)
+            next_snapshot[pid] = cpu_jiffies
+            if previous is None:
+                continue
+            delta = cpu_jiffies - previous
+            if delta <= 0:
+                continue
+            scored.append(
+                {
+                    "pid": pid,
+                    "name": snapshot["name"],
+                    "cpu_percent": round((delta / total_delta) * 100.0, 2),
+                    "memory_rss_kb": snapshot["memory_rss_kb"],
+                }
+            )
+
+        self._previous_total_cpu_jiffies = total_cpu_jiffies
+        self._previous_process_cpu_jiffies = next_snapshot
+        scored.sort(key=lambda item: float(item["cpu_percent"]), reverse=True)
+        return scored[: self.top_process_count]
+
+    def _top_memory_processes(self, snapshots: list[dict[str, object]]) -> list[dict[str, object]]:
+        ranked = [
+            {
+                "pid": int(snapshot["pid"]),
+                "name": snapshot["name"],
+                "memory_rss_kb": int(snapshot["memory_rss_kb"]),
+            }
+            for snapshot in snapshots
+            if isinstance(snapshot.get("memory_rss_kb"), int)
+        ]
+        ranked.sort(key=lambda item: int(item["memory_rss_kb"]), reverse=True)
+        return ranked[: self.top_process_count]
 
     def _read_text(self, path: str) -> str | None:
         try:
@@ -584,3 +790,43 @@ class LinuxCommonSensorPack:
             return float(parts[0])
         except ValueError:
             return None
+
+    @staticmethod
+    def _parse_process_name(raw: str | None) -> str | None:
+        if raw is None:
+            return None
+        for line in raw.splitlines():
+            if not line.startswith("Name:"):
+                continue
+            return line.split(":", 1)[1].strip()
+        return None
+
+    @staticmethod
+    def _parse_process_rss_kb(raw: str | None) -> int | None:
+        if raw is None:
+            return None
+        for line in raw.splitlines():
+            if not line.startswith("VmRSS:"):
+                continue
+            fields = line.split()
+            if len(fields) < 2:
+                return None
+            try:
+                return int(fields[1])
+            except ValueError:
+                return None
+        return None
+
+    @staticmethod
+    def _parse_nvme_temperature_celsius(value: object) -> float | None:
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            return float(value)
+        if isinstance(value, str):
+            digits = "".join(character for character in value if character.isdigit() or character == ".")
+            if not digits:
+                return None
+            try:
+                return float(digits)
+            except ValueError:
+                return None
+        return None

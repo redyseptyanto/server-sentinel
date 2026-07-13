@@ -57,6 +57,10 @@ Sentinel is in foundation development. The repository now contains:
 - Event schema versioning.
 - Simulated thermal recovery sensor, policy, and action loop.
 - Linux common sensor pack for real host monitoring on Ubuntu/Linux.
+- Severity-based thermal incident policy with warning, critical, and emergency
+  escalation.
+- Top CPU and memory process summaries plus Docker engine/container status in
+  host diagnostics.
 - Plugin manifest validation.
 - Plugin manifest file discovery.
 - Event bus backpressure strategy (bounded retention with drop_oldest,
@@ -74,21 +78,31 @@ python -m unittest discover -s tests
 ```
 
 ## How It Works
-Today the runnable path is a safe simulation of Sentinel's recovery loop:
+Sentinel now has two useful runtime slices:
 
-- a simulated CPU sensor emits `sensor.metric_observed`
-- the thermal policy watches `temperature_celsius`
-- when the temperature is above threshold, Sentinel emits
-  `policy.action_requested`
-- the simulated `cool_down` action goes through the audit flow
-- if Hermes is enabled, Sentinel pushes notifications and approval requests to
-  Hermes over HTTP
-- if Hermes is disabled, the non-destructive simulation action auto-approves
-  locally so the workflow can still be tested
+- `simulation.enabled = true`
+  A simulated CPU sensor repeatedly emits the configured starting temperature.
+  This is still fake thermal input, but it exercises the real event, policy,
+  approval, and audit path.
+- `monitoring.enabled = true`
+  The Linux common sensor pack reads real host facts from `/proc`, `sysfs`, and
+  common system tools, then emits them as structured events.
 
-The current sensor value is fake. It repeatedly emits the configured starting
-temperature so we can validate the control loop without touching real host
-state yet.
+The thermal policy is incident-based and stateful:
+
+- `Normal`
+  below thresholds, no recovery action
+- `Warning`
+  notify once per incident and include CPU, memory, top processes, Docker, and
+  storage summary
+- `Critical`
+  request approval for graceful mitigation of non-protected hot processes
+- `Emergency`
+  after the configured hold period, escalate to workload reduction and then a
+  clean shutdown request if the host stays too hot
+
+In simulation mode the temperature source is fake, but the approvals, audit
+trail, policy decisions, and emitted events are real runtime behavior.
 
 ## Run Sentinel
 Start from the tracked example config:
@@ -120,7 +134,6 @@ path = "var/sentinel/audit.jsonl"
 [simulation]
 enabled = false
 interval_seconds = 5
-temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
 
 [monitoring]
@@ -128,7 +141,27 @@ enabled = true
 interval_seconds = 30
 include_optional = true
 disk_paths = ["/", "/var"]
-temp_threshold_celsius = 40.0
+
+[thermal_policy]
+warning_cpu_threshold_celsius = 70.0
+warning_nvme_threshold_celsius = 80.0
+rearm_below_celsius = 60.0
+critical_cpu_threshold_celsius = 85.0
+emergency_cpu_threshold_celsius = 95.0
+emergency_hold_seconds = 30
+approval_timeout_seconds = 30
+protected_process_patterns = [
+  "systemd",
+  "sshd",
+  "NetworkManager",
+  "dbus-daemon",
+  "dockerd",
+  "containerd",
+  "postgres",
+  "mysqld",
+  "mongod",
+]
+top_process_count = 3
 
 [hermes]
 enabled = true
@@ -165,22 +198,33 @@ sentinel validate-config --config sentinel.toml
 sentinel run --config sentinel.toml
 ```
 
+## Tune Thermal Thresholds
+Change CPU and NVMe thresholds in `[thermal_policy]`.
+
+For a compact mini PC such as a Geekom A8 with a Ryzen 7 8xxx CPU and 16 GB
+RAM, the current example defaults are a sensible starting point:
+
+- warning CPU: `70C`
+- critical CPU: `85C`
+- emergency CPU: `95C`
+- warning NVMe: `80C`
+- re-arm: `60C`
+
 ## What To Expect
 - Sentinel starts and stays in the foreground until `Ctrl+C` or the optional
   duration expires.
 - Audit records are written to `var/sentinel/audit.jsonl`.
-- With simulation enabled, you should see events for:
-  `sensor.metric_observed`, `policy.action_requested`, `action.requested`,
-  `approval.decision_recorded`, `action.started`, `action.succeeded`,
-  `verification.started`, and `verification.succeeded`.
+- With simulation enabled, you should see `sensor.metric_observed` plus thermal
+  warning, critical, and possibly emergency events depending on the configured
+  starting temperature and runtime duration.
 - With Linux monitoring enabled, Sentinel emits best-effort host facts for CPU,
-  memory, disk, network, process count, boot state, and login sessions, plus
-  optional service, Docker, storage health, battery, and GPU summaries when
-  the host exposes them.
+  memory, disk, network, process count, top CPU and memory processes, boot
+  state, and login sessions, plus optional service, Docker, storage health,
+  battery, and GPU summaries when the host exposes them.
 - With Hermes enabled and reachable, Sentinel pushes warning and higher events
   plus approval requests to Hermes.
-- With Hermes disabled, the simulated non-destructive `cool_down` action still
-  runs so you can test the loop locally.
+- With Hermes disabled, destructive mitigation actions remain deferred after
+  the approval request is audited. This is intentional.
 
 Watch the audit log while it runs:
 
@@ -190,8 +234,9 @@ tail -f var/sentinel/audit.jsonl
 
 ## Current Caveats
 - The thermal sensor is simulated, not reading real CPU hardware yet.
-- The `cool_down` action is simulated, not changing real processes, fans, or
-  thermal state.
+- All actions are still simulated. Sentinel records and verifies the workflow,
+  but it does not yet terminate processes, stop containers, or shut down the
+  host for real.
 - The Linux common sensor pack is best-effort. Optional probes for Docker,
   `systemctl`, SMART, NVMe, battery, and GPU only emit data when the host has
   those capabilities and commands available.

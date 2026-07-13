@@ -61,17 +61,18 @@ Deliverables:
 Deliverables:
 - CPU sensor. Partial: simulated CPU thermal sensor is done.
 - Linux common sensor pack. Done.
-- Memory sensor.
-- Disk sensor.
-- NVMe sensor.
-- Docker sensor.
+- Memory sensor. Done in the Linux common sensor pack.
+- Disk sensor. Done in the Linux common sensor pack.
+- NVMe sensor. Done as a best-effort probe in the Linux common sensor pack.
+- Docker sensor. Done as a best-effort probe in the Linux common sensor pack.
 - System service sensor.
 
 ## Phase 5: Policy Engine
 Deliverables:
 - Deterministic policy model.
 - Policy packs.
-- Thermal recovery policy. Partial: simulated thermal policy is done.
+- Thermal recovery policy. Done for warning, critical, and emergency incident
+  escalation in the reference runtime.
 - Suppression and maintenance windows.
 
 ## Phase 6: Action Engine
@@ -81,6 +82,8 @@ Deliverables:
 - Dry-run support.
 - Pre-action and post-action audit events. Partial: destructive audit sequence exists.
 - Simulated `cool_down` action flow. Done for the reference simulation slice.
+- Simulated destructive mitigation actions. Done for thermal recovery
+  escalation testing.
 
 ## Phase 7: Notifications
 Deliverables:

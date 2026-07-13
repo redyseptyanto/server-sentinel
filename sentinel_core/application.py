@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from threading import Event as ThreadEvent, Thread
 
-from sentinel_core.actions import ActionPort, SimulatedCoolDownAction
+from sentinel_core.actions import (
+    ActionPort,
+    ActionRouter,
+    SimulatedCoolDownAction,
+    SimulatedMitigationAction,
+)
 from sentinel_core.audit import JsonlAuditLog
 from sentinel_core.config import SentinelConfig, load_config
 from sentinel_core.events import InMemoryEventBus
@@ -178,15 +183,22 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
 
     thermal_recovery_runtime: ThermalRecoveryRuntime | None = None
     if resolved_config.simulation.enabled or resolved_config.monitoring.enabled:
-        threshold = (
-            resolved_config.simulation.temp_threshold_celsius
-            if resolved_config.simulation.enabled
-            else resolved_config.monitoring.temp_threshold_celsius
+        action_handler = ActionRouter(
+            handlers=(
+                SimulatedCoolDownAction(event_bus=event_bus),
+                SimulatedMitigationAction(
+                    event_bus=event_bus,
+                    supported_action_types=(
+                        "terminate_processes",
+                        "reduce_workload",
+                        "shutdown_host",
+                    ),
+                ),
+            )
         )
-        action_handler = SimulatedCoolDownAction(event_bus=event_bus)
         thermal_policy = ThermalPolicy(
             event_bus=event_bus,
-            threshold=threshold,
+            config=resolved_config.thermal_policy,
             action_handler=lambda request: action_handler.execute(
                 request,
                 approval_provider=(
@@ -219,6 +231,7 @@ def create_application(config: SentinelConfig | None = None) -> SentinelApplicat
             event_bus=event_bus,
             disk_paths=resolved_config.monitoring.disk_paths,
             include_optional=resolved_config.monitoring.include_optional,
+            top_process_count=resolved_config.thermal_policy.top_process_count,
         )
         monitoring_runtime = MonitoringRuntime(
             scheduler=scheduler,

@@ -66,6 +66,7 @@ executes, verifies, and audits.
 Everything produces events. Example event types include:
 - `cpu.temperature.warning`
 - `cpu.temperature.critical`
+- `cpu.temperature.emergency`
 - `docker.container.unhealthy`
 - `service.failed`
 - `memory.high`
@@ -86,6 +87,18 @@ Illustrative thermal recovery workflow:
    persists.
 
 Every policy must be configurable.
+
+Thermal recovery should support severity-based escalation such as:
+- Normal.
+- Warning.
+- Critical.
+- Emergency.
+
+Illustrative default thresholds for compact Ryzen-class Linux hosts:
+- Normal: CPU below 70 C and NVMe below 80 C.
+- Warning: CPU at or above 70 C or NVMe at or above 80 C.
+- Critical: CPU at or above 85 C.
+- Emergency: CPU at or above 95 C for the configured hold period.
 
 ## Safe Recovery Protocol
 Every recovery action follows this sequence:
@@ -135,6 +148,10 @@ Telegram-capable providers and notification plugins should support:
 - Weekly reports.
 
 Approval should happen directly from Telegram where practical.
+
+Warning notifications should be incident-based rather than repeated on every
+poll. Recovery notifications should include current temperatures, CPU or memory
+pressure, top processes, Docker status, and a compact system summary.
 
 ## Initial Features
 - Runtime lifecycle management.

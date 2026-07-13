@@ -4,9 +4,11 @@
 - [ ] DOCS-002 Add contributor guide
 
 # Current Sprint
+- [ ] CORE-005 Add graceful shutdown hooks
 - [ ] AUDIT-003 Add durable event sink interface
 
 # In Progress
+- [ ] CORE-005 Add graceful shutdown hooks
 
 # Review
 
@@ -36,3 +38,6 @@
 - [x] ACTION-001 Add simulated cool_down action flow
 - [x] CLI-001 Add runtime start and config validation commands
 - [x] SENSOR-002 Add Linux common sensor pack
+- [x] POLICY-002 Add thermal incident severity policy
+- [x] SENSOR-003 Add top-process and richer Docker monitoring
+- [x] ACTION-002 Add simulated destructive mitigation actions

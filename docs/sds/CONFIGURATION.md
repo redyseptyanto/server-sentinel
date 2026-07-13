@@ -23,7 +23,6 @@ path = "var/sentinel/audit.jsonl"
 [simulation]
 enabled = false
 interval_seconds = 5
-temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
 
 [monitoring]
@@ -31,7 +30,17 @@ enabled = false
 interval_seconds = 30
 include_optional = true
 disk_paths = ["/"]
-temp_threshold_celsius = 40.0
+
+[thermal_policy]
+warning_cpu_threshold_celsius = 70.0
+warning_nvme_threshold_celsius = 80.0
+rearm_below_celsius = 60.0
+critical_cpu_threshold_celsius = 85.0
+emergency_cpu_threshold_celsius = 95.0
+emergency_hold_seconds = 30
+approval_timeout_seconds = 30
+protected_process_patterns = ["systemd", "sshd", "NetworkManager", "dbus-daemon", "dockerd", "containerd", "postgres", "mysqld", "mongod"]
+top_process_count = 3
 ```
 
 ## Runtime Table
@@ -76,17 +85,16 @@ where the publish call itself fails.
 ## Simulation Table
 - enabled: whether to wire the thermal recovery simulation into the application.
 - interval_seconds: scheduler cadence for the simulated CPU sensor. Default 5.
-- temp_threshold_celsius: threshold above which the thermal policy emits a
-  `cool_down` action request. Default 40.0.
 - starting_temp_celsius: temperature emitted by the simulated sensor. Default
   85.0.
+- temp_threshold_celsius: legacy compatibility field from the first simulation
+  slice. The severity ladder now uses `[thermal_policy]` thresholds instead.
 
 ### Simulation Defaults
 ```toml
 [simulation]
 enabled = false
 interval_seconds = 5
-temp_threshold_celsius = 40.0
 starting_temp_celsius = 85.0
 ```
 
@@ -97,8 +105,38 @@ starting_temp_celsius = 85.0
   `systemctl`, SMART, NVMe, battery, and GPU where available. Default true.
 - disk_paths: list of filesystem paths to inspect with disk usage probes.
   Default `["/"]`.
-- temp_threshold_celsius: thermal threshold used by the shared thermal recovery
-  policy when monitoring mode is driving real temperature events. Default 40.0.
+- temp_threshold_celsius: legacy compatibility field from the first monitoring
+  slice. The severity ladder now uses `[thermal_policy]` thresholds instead.
+
+## Thermal Policy Table
+- warning_cpu_threshold_celsius: CPU warning threshold. Default 70.0.
+- warning_nvme_threshold_celsius: NVMe warning threshold. Default 80.0.
+- rearm_below_celsius: incident clear threshold for re-arming notifications and
+  escalations. Default 60.0.
+- critical_cpu_threshold_celsius: CPU critical threshold. Default 85.0.
+- emergency_cpu_threshold_celsius: CPU emergency threshold. Default 95.0.
+- emergency_hold_seconds: how long CPU temperature must remain at or above the
+  emergency threshold before the emergency state is entered. Default 30.
+- approval_timeout_seconds: approval timeout value published in policy action
+  requests and recovery recommendations. Default 30.
+- protected_process_patterns: process name fragments that must not be selected
+  as termination candidates by the thermal policy.
+- top_process_count: number of top CPU and memory processes to include in
+  diagnostics and recovery context. Default 3.
+
+### Thermal Policy Defaults
+```toml
+[thermal_policy]
+warning_cpu_threshold_celsius = 70.0
+warning_nvme_threshold_celsius = 80.0
+rearm_below_celsius = 60.0
+critical_cpu_threshold_celsius = 85.0
+emergency_cpu_threshold_celsius = 95.0
+emergency_hold_seconds = 30
+approval_timeout_seconds = 30
+protected_process_patterns = ["systemd", "sshd", "NetworkManager", "dbus-daemon", "dockerd", "containerd", "postgres", "mysqld", "mongod"]
+top_process_count = 3
+```
 
 ### Monitoring Defaults
 ```toml
@@ -107,7 +145,6 @@ enabled = false
 interval_seconds = 30
 include_optional = true
 disk_paths = ["/"]
-temp_threshold_celsius = 40.0
 ```
 
 ### Hermes Defaults
@@ -142,6 +179,12 @@ require_approval = true
 - Monitoring include_optional must be a boolean.
 - Monitoring disk_paths must be a list of non-empty strings.
 - Monitoring temp_threshold_celsius must be numeric.
+- Thermal policy thresholds must be numeric.
+- Thermal policy thresholds must preserve escalation order: re-arm below warning,
+  warning below critical, and critical below emergency.
+- Thermal policy hold and timeout values must be positive numbers.
+- Thermal policy protected_process_patterns must be a list of non-empty strings.
+- Thermal policy top_process_count must be a positive integer.
 - Configuration errors must fail before runtime startup emits running state.
 
 ## Current Implementation
