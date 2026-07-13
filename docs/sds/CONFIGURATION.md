@@ -19,6 +19,12 @@ kind = "in_memory"
 [audit]
 enabled = true
 path = "var/sentinel/audit.jsonl"
+
+[simulation]
+enabled = false
+interval_seconds = 5
+temp_threshold_celsius = 40.0
+starting_temp_celsius = 85.0
 ```
 
 ## Runtime Table
@@ -56,9 +62,26 @@ where the publish call itself fails.
 - token: Bearer token sent in the `Authorization` header.
 - timeout_seconds: HTTP request timeout. Default 10.0. Must be positive.
 - notify_on: list of severity strings that trigger event push. Default
-  `["warning", "error", "critical"]`.
+`["warning", "error", "critical"]`.
 - require_approval: whether to use the Hermes approval provider for action
   decisions. Default true.
+
+## Simulation Table
+- enabled: whether to wire the thermal recovery simulation into the application.
+- interval_seconds: scheduler cadence for the simulated CPU sensor. Default 5.
+- temp_threshold_celsius: threshold above which the thermal policy emits a
+  `cool_down` action request. Default 40.0.
+- starting_temp_celsius: temperature emitted by the simulated sensor. Default
+  85.0.
+
+### Simulation Defaults
+```toml
+[simulation]
+enabled = false
+interval_seconds = 5
+temp_threshold_celsius = 40.0
+starting_temp_celsius = 85.0
+```
 
 ### Hermes Defaults
 ```toml
@@ -83,12 +106,16 @@ require_approval = true
 - Hermes timeout_seconds must be a positive number.
 - Hermes notify_on must be a list of strings.
 - Hermes require_approval must be a boolean.
+- Simulation enabled must be a boolean.
+- Simulation interval_seconds must be a positive integer.
+- Simulation temp_threshold_celsius must be numeric.
+- Simulation starting_temp_celsius must be numeric.
 - Configuration errors must fail before runtime startup emits running state.
-
-## Future Tables
-Future phases will add plugin discovery, sensors, policies, actions,
-notifications, approvals, API, and scheduler configuration.
 
 ## Current Implementation
 The reference runtime implements this configuration contract in
 `sentinel_core.config` and wires it through `sentinel_core.application`.
+
+## Future Tables
+Future phases will add plugin discovery, richer sensors, policies, actions,
+notifications, approvals, API, and scheduler configuration.

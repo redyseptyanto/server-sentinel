@@ -21,6 +21,12 @@ macOS.
 - Sensors emit metrics, diagnostics, and lifecycle events.
 - Sensors should be independently configurable and schedulable.
 
+## Current Reference Slice
+The reference runtime includes a simulated CPU sensor for thermal recovery
+development. It publishes `sensor.metric_observed` events with a
+`temperature_celsius` field on a scheduler cadence so policy and action flows
+can be tested without host-specific integrations.
+
 ## Event Expectations
 Everything produces events.
 

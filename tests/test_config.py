@@ -6,6 +6,7 @@ from sentinel_core import (
     BackpressureStrategy,
     ConfigurationError,
     HermesConfig,
+    SimulationConfig,
     config_from_mapping,
     load_config,
 )
@@ -150,6 +151,42 @@ class ConfigTests(unittest.TestCase):
                     }
                 }
             )
+
+    def test_simulation_defaults_are_disabled(self) -> None:
+        config = config_from_mapping({})
+
+        self.assertFalse(config.simulation.enabled)
+        self.assertEqual(config.simulation.interval_seconds, 5)
+        self.assertEqual(config.simulation.temp_threshold_celsius, 40.0)
+        self.assertEqual(config.simulation.starting_temp_celsius, 85.0)
+
+    def test_simulation_config_is_parsed(self) -> None:
+        config = config_from_mapping(
+            {
+                "simulation": {
+                    "enabled": True,
+                    "interval_seconds": 2,
+                    "temp_threshold_celsius": 50.0,
+                    "starting_temp_celsius": 91.5,
+                }
+            }
+        )
+
+        self.assertTrue(config.simulation.enabled)
+        self.assertEqual(config.simulation.interval_seconds, 2)
+        self.assertEqual(config.simulation.temp_threshold_celsius, 50.0)
+        self.assertEqual(config.simulation.starting_temp_celsius, 91.5)
+
+    def test_invalid_simulation_interval_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"simulation": {"interval_seconds": 0}})
+
+    def test_invalid_simulation_temperature_raises(self) -> None:
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"simulation": {"temp_threshold_celsius": "hot"}})
+
+        with self.assertRaises(ConfigurationError):
+            config_from_mapping({"simulation": {"starting_temp_celsius": "hot"}})
 
 
 if __name__ == "__main__":

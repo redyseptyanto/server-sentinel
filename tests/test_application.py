@@ -1,4 +1,5 @@
 import json
+import time
 import tempfile
 import unittest
 from pathlib import Path
@@ -41,6 +42,50 @@ class ApplicationTests(unittest.TestCase):
             ]
             self.assertEqual([record["data"]["to_state"] for record in records], ["starting", "running"])
             self.assertEqual(records[0]["subject"], "edge-node-2")
+
+    def test_simulation_runtime_is_wired_when_enabled(self) -> None:
+        config = config_from_mapping(
+            {
+                "audit": {"enabled": False, "path": "unused.jsonl"},
+                "simulation": {
+                    "enabled": True,
+                    "interval_seconds": 1,
+                    "temp_threshold_celsius": 40.0,
+                    "starting_temp_celsius": 85.0,
+                },
+            }
+        )
+
+        app = create_application(config)
+
+        self.assertIsNotNone(app.simulation_runtime)
+        assert app.simulation_runtime is not None
+        self.assertEqual(app.simulation_runtime.interval_seconds, 1)
+
+    def test_simulation_runtime_loops_when_started(self) -> None:
+        config = config_from_mapping(
+            {
+                "audit": {"enabled": False, "path": "unused.jsonl"},
+                "simulation": {
+                    "enabled": True,
+                    "interval_seconds": 1,
+                    "temp_threshold_celsius": 40.0,
+                    "starting_temp_celsius": 85.0,
+                },
+            }
+        )
+
+        app = create_application(config)
+        app.start()
+        try:
+            time.sleep(1.25)
+        finally:
+            app.stop()
+
+        event_types = [event.type for event in app.event_bus.events]
+        self.assertIn("sensor.metric_observed", event_types)
+        self.assertIn("policy.action_requested", event_types)
+        self.assertIn("action.succeeded", event_types)
 
 
 if __name__ == "__main__":

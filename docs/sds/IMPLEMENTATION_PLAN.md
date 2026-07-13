@@ -59,7 +59,7 @@ Deliverables:
 
 ## Phase 4: Sensors
 Deliverables:
-- CPU sensor.
+- CPU sensor. Partial: simulated CPU thermal sensor is done.
 - Memory sensor.
 - Disk sensor.
 - NVMe sensor.
@@ -70,7 +70,7 @@ Deliverables:
 Deliverables:
 - Deterministic policy model.
 - Policy packs.
-- Thermal recovery policy.
+- Thermal recovery policy. Partial: simulated thermal policy is done.
 - Suppression and maintenance windows.
 
 ## Phase 6: Action Engine
@@ -79,6 +79,7 @@ Deliverables:
 - Safety classification.
 - Dry-run support.
 - Pre-action and post-action audit events. Partial: destructive audit sequence exists.
+- Simulated `cool_down` action flow. Done for the reference simulation slice.
 
 ## Phase 7: Notifications
 Deliverables:

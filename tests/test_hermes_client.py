@@ -1,5 +1,7 @@
 """Tests for the Hermes HTTP push client."""
 
+from __future__ import annotations
+
 import unittest
 from json import dumps
 from unittest.mock import MagicMock, patch

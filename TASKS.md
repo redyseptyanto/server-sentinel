@@ -4,6 +4,7 @@
 - [ ] DOCS-002 Add contributor guide
 
 # Current Sprint
+- [ ] AUDIT-003 Add durable event sink interface
 
 # In Progress
 
@@ -30,3 +31,6 @@
 - [x] HERMES-004 Wire Hermes notifier + approval provider into composition root
 - [x] HERMES-005 Add tests for Hermes integration
 - [x] HERMES-006 End-to-end verification with live Hermes server
+- [x] SENSOR-001 Add simulated CPU thermal sensor
+- [x] POLICY-001 Add thermal recovery policy simulation
+- [x] ACTION-001 Add simulated cool_down action flow

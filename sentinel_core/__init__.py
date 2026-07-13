@@ -9,12 +9,14 @@ from sentinel_core.action_audit import (
     ActionSafety,
     ApprovalDecision,
 )
+from sentinel_core.actions import ActionPort, SimulatedCoolDownAction
 from sentinel_core.config import (
     AuditConfig,
     ConfigurationError,
     EventBusConfig,
     HermesConfig,
     RuntimeConfig,
+    SimulationConfig,
     SentinelConfig,
     config_from_mapping,
     load_config,
@@ -34,6 +36,7 @@ from sentinel_core.hermes_client import (
     HermesConnectionError,
     HermesNotificationHandler,
 )
+from sentinel_core.policies import ThermalPolicy
 from sentinel_core.ports import ApprovalResult, ApprovalProviderPort, NotificationPort
 from sentinel_core.plugins import (
     DiscoveredPluginManifest,
@@ -47,10 +50,12 @@ from sentinel_core.plugins import (
 )
 from sentinel_core.runtime import Runtime, RuntimeState
 from sentinel_core.scheduler import ScheduledJob, Scheduler, SchedulerError
+from sentinel_core.sensors import SimulatedCpuSensor
 
 __all__ = [
     "ActionAuditError",
     "ActionAuditRecorder",
+    "ActionPort",
     "ActionRequest",
     "ActionSafety",
     "AuditConfig",
@@ -86,10 +91,14 @@ __all__ = [
     "SchedulerError",
     "SentinelApplication",
     "SentinelConfig",
+    "SimulatedCoolDownAction",
+    "SimulatedCpuSensor",
+    "SimulationConfig",
     "config_from_mapping",
     "create_application",
     "discover_plugin_manifests",
     "load_plugin_manifest",
     "load_config",
     "plugin_manifest_from_mapping",
+    "ThermalPolicy",
 ]

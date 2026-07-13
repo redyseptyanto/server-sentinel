@@ -54,6 +54,7 @@ Sentinel is in foundation development. The repository now contains:
 - Destructive action audit sequencing.
 - Tick-driven scheduler contract.
 - Event schema versioning.
+- Simulated thermal recovery sensor, policy, and action loop.
 - Plugin manifest validation.
 - Plugin manifest file discovery.
 - Event bus backpressure strategy (bounded retention with drop_oldest,
@@ -63,7 +64,7 @@ Sentinel is in foundation development. The repository now contains:
   endpoint, token, timeout, and severity filter.
 - Unit tests for events, runtime lifecycle, configuration, audit logging,
   action audit sequencing, scheduler behavior, plugin manifests,
-  Hermes client, and Hermes config.
+  Hermes client, Hermes config, and thermal recovery simulation.
 
 ## Run Tests
 ```powershell
